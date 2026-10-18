@@ -74,6 +74,32 @@ input,select,textarea{font:inherit;color:inherit}
 .btn.ghost{background:transparent;border-color:transparent;color:var(--muted);padding:6px 8px}
 .btn.ghost:hover{background:#f1eade;color:var(--ink-2)}
 .btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.mini{
+  margin-left:6px;border:1px solid var(--line);background:var(--panel-2);color:var(--gold-d);
+  border-radius:999px;padding:1px 9px;font-size:11px;font-family:inherit;cursor:pointer;transition:.16s;
+}
+.mini:hover{background:var(--gold-l);border-color:#e2d0b2}
+/* 无声诊断条 */
+.soundbar{
+  position:fixed;left:50%;bottom:20px;z-index:70;display:flex;align-items:center;gap:10px;
+  max-width:min(94vw,600px);padding:10px 12px;border-radius:14px;
+  background:var(--panel);border:1px solid var(--line);box-shadow:0 10px 30px -12px rgba(70,50,20,.4);
+  opacity:0;pointer-events:none;transform:translate(-50%,14px);transition:.24s;
+}
+.soundbar.show{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
+.soundbar .ico{font-size:17px;line-height:1;flex:none}
+.soundbar .txt{display:flex;flex-direction:column;gap:2px;min-width:0}
+.soundbar .txt b{font-size:12.5px;font-weight:650}
+.soundbar .txt span{font-size:11.5px;color:var(--muted);line-height:1.55}
+.soundbar .acts{display:flex;gap:6px;flex:none}
+.soundbar .btn{padding:6px 11px;font-size:12.5px;border-radius:9px}
+.soundbar .x{border:0;background:transparent;color:var(--muted);font-size:16px;line-height:1;cursor:pointer;padding:2px 4px;flex:none}
+.soundbar .x:hover{color:var(--ink)}
+@media (max-width:560px){
+  .soundbar{left:12px;right:12px;bottom:12px;max-width:none;transform:translate(0,14px);align-items:flex-start}
+  .soundbar.show{transform:translate(0,0)}
+  .soundbar .acts{flex-direction:column}
+}
 
 .layout{display:grid;grid-template-columns:344px minmax(0,1fr);gap:18px;align-items:start}
 
@@ -333,7 +359,7 @@ mutual,相互的"></textarea>
       <!-- 设置 -->
       <div class="settings">
         <div class="set wide">
-          <label>发音引擎</label>
+          <label>发音引擎<button class="mini" id="btnTestSound" type="button" title="用当前引擎读一个 hello">试听</button></label>
           <select id="selEngine">
             <option value="youdao-us">有道美音 · 近 NaturalReader 质感</option>
             <option value="youdao-uk">有道英音</option>
@@ -447,6 +473,19 @@ mutual,相互的"></textarea>
 </div>
 
 <div id="toast"></div>
+
+<div class="soundbar" id="soundBar">
+  <span class="ico">🔇</span>
+  <div class="txt">
+    <b id="sbTitle">没有声音？</b>
+    <span id="sbDesc">点「恢复播放」试一次</span>
+  </div>
+  <div class="acts">
+    <button class="btn gold" id="sbRetry" type="button">恢复播放</button>
+    <button class="btn" id="sbTest" type="button">测试发音</button>
+  </div>
+  <button class="x" id="sbClose" type="button" title="关闭">×</button>
+</div>
 
 <script>
 "use strict";
@@ -582,6 +621,7 @@ function preload(text) {
   const url = engineUrl(text);
   if (urlIsDead(url)) return;
   const a = getAudio(url);
+  if (!a.paused) return;   // 正在播的元素不要 load()，否则会把当前这遍打断
   try { a.load(); } catch (e) { }
 }
 function preloadNext() {
@@ -594,21 +634,28 @@ function preloadNext() {
  * 播放一段在线音频。
  * 明确职责：只有「压根没出声」才算失败；一旦开始播放，就只等它自然结束，
  * 绝不再降级到系统语音——这是之前「在线读一遍 + 系统再读一遍」的根源。
+ *
+ * 另外：同一个 Audio 元素会被反复复用（连点重播、重复 3 遍都在用它），
+ * 所以每次播放发一个序号，旧轮次的清理不能把新轮次的事件处理器一起清空，
+ * 否则会出现「点了没反应、一直卡着」。
  */
+let playSeq = 0;
 function playAudioEl(a, onSlow) {
   return new Promise((resolve, reject) => {
+    const myId = ++playSeq;
+    a.__playId = myId;
+    const isMine = () => a.__playId === myId;
+
     let settled = false, started = false;
     let stallTimer = null, tailTimer = null, slowTimer = null, hardTimer = null;
 
-    const clearAll = () => {
-      clearTimeout(stallTimer); clearTimeout(tailTimer);
-      clearTimeout(slowTimer); clearTimeout(hardTimer);
-      a.onended = null; a.onerror = null; a.onplaying = null;
-    };
     const settle = (err) => {
       if (settled) return;
       settled = true;
-      clearAll();
+      clearTimeout(stallTimer); clearTimeout(tailTimer);
+      clearTimeout(slowTimer); clearTimeout(hardTimer);
+      if (!isMine()) { resolve(); return; }   // 已被新一轮接管：安静退出，别去动元素
+      a.onended = null; a.onerror = null; a.onplaying = null;
       if (err) {
         // 关键：判定失败立刻掐掉这个元素，
         // 否则它缓冲完成后会「迟到」地自己响一遍，和系统语音叠成两遍
@@ -631,9 +678,9 @@ function playAudioEl(a, onSlow) {
       if (playing) paintPlayState();
     };
 
-    a.onended = () => settle();
-    a.onerror = () => settle(new Error("audio-error"));
-    a.onplaying = markStarted;
+    a.onended = () => { if (isMine()) settle(); };
+    a.onerror = () => { if (isMine()) settle(new Error("audio-error")); };
+    a.onplaying = () => { if (isMine()) markStarted(); };
 
     // 加载偏慢时给个提示，避免用户以为卡住了
     slowTimer = setTimeout(() => {
@@ -642,6 +689,7 @@ function playAudioEl(a, onSlow) {
 
     // 起播放门狗：8 秒还没出声，才判定这条链路不通
     stallTimer = setTimeout(() => {
+      if (!isMine()) { settle(); return; }
       if (!a.paused && a.currentTime > 0) { markStarted(); return; }
       settle(new Error("stall"));
     }, 8000);
@@ -653,28 +701,80 @@ function playAudioEl(a, onSlow) {
     try { a.pause(); } catch (e) { }
     try { a.currentTime = 0; } catch (e) { }
     a.playbackRate = Number(cfg.rate) || 1;
+    a.volume = 1;
     let p;
     try { p = a.play(); } catch (e) { settle(e); return; }
     if (p && typeof p.catch === "function") p.catch(err => settle(err));
   });
 }
 
-function webSpeak(text) {
+/**
+ * 系统语音。
+ * 两个真实坑：
+ *  1. Chrome / Edge 里 cancel() 之后立刻 speak()，这一句会被静默吞掉（不报错、不发声、onend 也不触发），
+ *     以前靠 guard 定时器直接标成功，于是「读完了但没声音」。所以现在 cancel 后等一拍再 speak。
+ *  2. getVoices() 首次是空数组（音色异步加载），指定 voice 会失败。所以第一遍失败后第二遍只用 lang。
+ * 判定标准改成「到底有没有 onstart」：没开始发音就算失败，绝不假装成功。
+ */
+function speechSupported() {
+  return ("speechSynthesis" in window) && (typeof SpeechSynthesisUtterance === "function");
+}
+
+function speakUtterance(text, opt) {
   return new Promise(resolve => {
-    if (!("speechSynthesis" in window)) { resolve(false); return; }
-    let done = false;
-    const fin = () => { if (done) return; done = true; resolve(true); };
-    try { window.speechSynthesis.cancel(); } catch (e) { }
+    const synth = window.speechSynthesis;
+    if (!synth) { resolve({ ok: false, reason: "unsupported" }); return; }
+    const rate = Math.min(2, Math.max(0.5, Number(cfg.rate) || 1));
+    let done = false, started = false, startTimer = null, endTimer = null;
+
     const u = new SpeechSynthesisUtterance(text);
-    const v = pickVoice();
-    if (v) { u.voice = v; u.lang = v.lang || "en-US"; } else { u.lang = "en-US"; }
-    u.rate = Math.min(2, Math.max(0.5, Number(cfg.rate) || 1));
-    u.pitch = 1;
-    u.onend = fin; u.onerror = fin;
-    const guard = Math.max(1500, text.length * 240 / (Number(cfg.rate) || 1)) + 2600;
-    setTimeout(fin, guard);
-    try { window.speechSynthesis.speak(u); } catch (e) { fin(); }
+    u.rate = rate; u.pitch = 1; u.volume = 1;
+    if (opt && opt.plain) {
+      u.lang = "en-US";
+    } else {
+      const v = pickVoice();
+      if (v) { u.voice = v; u.lang = v.lang || "en-US"; }
+      else { u.lang = "en-US"; }
+    }
+
+    const fin = (ok, reason) => {
+      if (done) return;
+      done = true;
+      clearTimeout(startTimer); clearTimeout(endTimer);
+      u.onstart = u.onend = u.onerror = null;
+      resolve({ ok, reason: reason || "" });
+    };
+
+    u.onstart = () => {
+      started = true;
+      clearTimeout(startTimer);
+      // 只用于兜底结束，不参与判定
+      const est = (text.length * 340 + 2000) / rate;
+      endTimer = setTimeout(() => fin(true), est);
+    };
+    u.onend = () => fin(true);
+    u.onerror = (e) => fin(started, (e && e.error) || "error");
+
+    // 1.2 秒还没开始发音，就认定这句被吞了
+    startTimer = setTimeout(() => { if (!started) fin(false, "nostart"); }, 1200);
+
+    try { synth.speak(u); } catch (e) { fin(false, "throw"); }
   });
+}
+
+async function webSpeak(text) {
+  if (!speechSupported()) return false;
+  const synth = window.speechSynthesis;
+  try { synth.cancel(); } catch (e) { }
+  await sleep(90);                       // 给 cancel 一点时间收尾
+  let r = await speakUtterance(text);
+  if (!r.ok) {
+    // 第二次机会：不指定 voice，只用 lang（首次加载音色后这样更容易成功）
+    try { synth.cancel(); } catch (e) { }
+    await sleep(260);
+    r = await speakUtterance(text, { plain: true });
+  }
+  return r.ok;
 }
 
 function pickVoice() {
@@ -695,13 +795,71 @@ function pickVoice() {
   return us || en[0];
 }
 
-/** 只念一遍（在线音频优先，失败才降级到系统语音，且保证不重叠） */
+/* ---------- 无声诊断 ---------- */
+const SILENT_WAV = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=";
+let audioUnlocked = false;
+let lastNoSoundNotice = 0;
+
+/** 在用户第一次点击/按键时解锁音频，否则自动下一题的发音会被浏览器拦掉 */
+function unlockAudio() {
+  if (audioUnlocked) return;
+  audioUnlocked = true;
+  try {
+    const a = new Audio(SILENT_WAV);
+    a.volume = 0.01;
+    const p = a.play();
+    if (p && typeof p.catch === "function") p.catch(() => { });
+    setTimeout(() => { try { a.pause(); } catch (e) { } }, 60);
+  } catch (e) { }
+  // iOS Safari：首次 speak 必须在手势里，先放一条静音语音把通道打开
+  try {
+    if (speechSupported()) {
+      const u = new SpeechSynthesisUtterance(" ");
+      u.volume = 0; u.lang = "en-US";
+      window.speechSynthesis.speak(u);
+    }
+  } catch (e) { }
+}
+
+function showSoundBar(title, desc) {
+  const bar = $("#soundBar");
+  if (!bar) return;
+  $("#sbTitle").textContent = title || "没有声音？";
+  $("#sbDesc").textContent = desc || "";
+  bar.classList.add("show");
+}
+function hideSoundBar() {
+  const bar = $("#soundBar");
+  if (bar) bar.classList.remove("show");
+}
+
+/** 两种发音都没出声时，给出可执行的下一步，而不是静默跳过 */
+function noteSilent(via) {
+  if (via === "web") {
+    showSoundBar("系统语音没有发出声音", "这台设备可能没装英文语音包。换成「有道美音」，或检查系统音量 / 蓝牙耳机。");
+  } else if (via === "remote") {
+    showSoundBar("在线发音没有声音", "音频加载失败或网络拦截。点「恢复播放」重试，或用「测试发音」确认。");
+  } else {
+    showSoundBar("没有声音", "先确认系统音量、静音开关、是否连了蓝牙耳机，再点「测试发音」。");
+  }
+  const now = Date.now();
+  if (now - lastNoSoundNotice > 20000) {
+    lastNoSoundNotice = now;
+    toast("没听到声音？点右下角「恢复播放 / 测试发音」");
+  }
+}
+
+/** 只念一遍。返回 { ok, via }：via 会告诉调用方声音是从哪条链路出来的 */
 let lastFallbackToast = 0;
-async function speakOnce(text) {
+async function speakOnceRaw(text) {
   if (isRemoteEngine()) {
     const url = engineUrl(text);
     // 这个词刚才已经确认不通，直接走系统语音，不再白等一轮
-    if (urlIsDead(url)) { await webSpeak(text); return; }
+    if (urlIsDead(url)) {
+      const ok = await webSpeak(text);
+      if (!ok) noteSilent("web");
+      return { ok, via: ok ? "web" : "none" };
+    }
     try {
       await playAudioEl(getAudio(url), () => {
         const st = $("#status");
@@ -709,23 +867,58 @@ async function speakOnce(text) {
       });
       failedUrls.delete(url);
       remoteFailStreak = 0;
-      return;
+      return { ok: true, via: "remote" };
     } catch (e) {
-      markUrlDead(url);
-      remoteFailStreak++;
-      if (remoteFailStreak >= 2 && !voiceFallback) {
-        voiceFallback = true;
-        toast("在线发音连续没响应，本轮剩余单词改用系统语音");
-      } else if (Date.now() - lastFallbackToast > 15000) {
-        lastFallbackToast = Date.now();
-        toast("在线发音没响应，这个词改用系统语音");
+      // 自动播放被拦（自动下一题、定时触发）不是网络问题：别把地址标死、别计失败次数
+      const denied = !!e && (e.name === "NotAllowedError" ||
+        /not allowed|user gesture|interact|gesture/i.test(String(e.message || "")));
+      if (!denied) {
+        markUrlDead(url);
+        remoteFailStreak++;
+        if (remoteFailStreak >= 2 && !voiceFallback) {
+          voiceFallback = true;
+          toast("在线发音连续没响应，本轮剩余单词改用系统语音");
+        } else if (Date.now() - lastFallbackToast > 15000) {
+          lastFallbackToast = Date.now();
+          toast("在线发音没响应，这个词改用系统语音");
+        }
+      } else {
+        showSoundBar("浏览器拦截了自动播放", "点「恢复播放」继续；之后这一轮就不会再被拦。");
       }
       const ok = await webSpeak(text);
-      if (!ok) toast("当前浏览器不支持语音播放，建议用 Chrome / Edge / Safari");
-      return;
+      if (!ok) noteSilent(denied ? "remote" : "web");
+      return { ok, via: ok ? "web" : "none" };
     }
   }
-  await webSpeak(text);
+  const ok = await webSpeak(text);
+  if (!ok) noteSilent("web");
+  return { ok, via: ok ? "web" : "none" };
+}
+
+async function speakOnce(text) {
+  const r = await speakOnceRaw(text);
+  if (r.ok) hideSoundBar();   // 有声音了就把诊断条收起来
+  return r;
+}
+
+/** 「试听」：用当前引擎读一个 hello，把结果直接告诉用户 */
+let testBusy = false;
+async function testSound() {
+  if (testBusy) return;
+  testBusy = true;
+  hideSoundBar();
+  const btn = $("#btnTestSound");
+  if (btn) btn.textContent = "测试中";
+  toast("正在测试发音…");
+  const r = await speakOnce("hello");
+  if (btn) btn.textContent = "试听";
+  testBusy = false;
+  if (r.ok) {
+    toast(r.via === "remote" ? "在线发音正常 ✓" : "系统语音正常 ✓");
+  } else {
+    showSoundBar("两种发音都没有声音",
+      "请检查：系统音量 / 静音键 / 是否连着蓝牙耳机 / 浏览器标签是否被静音。仍不行就换个浏览器试试。");
+  }
 }
 
 /* ---------------- 播放序列 ---------------- */
@@ -1068,6 +1261,17 @@ function toast(msg) {
 }
 
 function bind() {
+  /* 声音诊断 */
+  $("#btnTestSound").onclick = testSound;
+  $("#sbTest").onclick = testSound;
+  $("#sbRetry").onclick = () => {
+    hideSoundBar();
+    unlockAudio();
+    if (started && !finished && queue.length) playSequence(true);
+    else testSound();
+  };
+  $("#sbClose").onclick = hideSoundBar;
+
   /* 词库 */
   $("#btnImport").onclick = () => {
     const list = parseBulk($("#bulk").value);
@@ -1284,6 +1488,9 @@ function resetCounter() {
 function init() {
   loadStore();
   bind();
+  // 第一次点击/按键时解锁音频通道：没有这一步，自动下一题的发音会被浏览器拦截
+  document.addEventListener("pointerdown", unlockAudio, { once: true, passive: true });
+  document.addEventListener("keydown", unlockAudio, { once: true });
   syncSettingsUI();
   paintList();
   resetCounter();
