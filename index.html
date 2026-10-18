@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>单词听测 · 听音回忆</title>
-<meta name="description" content="只给声音、不给拼写：听完发音后有 2 秒空白让你回忆，然后自动揭晓单词与释义。单文件、零依赖、可离线使用的单词听测网页。">
+<meta name="description" content="只给声音、不给拼写：听完发音后有 2 秒空白让你回忆，然后自动揭晓单词与释义。另附音频切分：上传录音 + 原文，自动整理去重词表并把音频按词切开，点词即读。单文件、零依赖、可离线使用。">
 <meta name="author" content="AprilPlatanus">
 <meta name="theme-color" content="#f6f2ea">
 <meta property="og:type" content="website">
@@ -295,6 +295,68 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:#fff
   .chips{width:100%;margin-left:0}
   .answer .def{font-size:15px}
 }
+
+/* ============ 视图切换 ============ */
+[hidden]{display:none !important}
+.tabs{display:flex;gap:3px;background:#f0e9dd;border:1px solid var(--line);border-radius:12px;padding:3px}
+.tabs button{padding:6px 14px;border-radius:9px;font-size:12.5px;font-weight:550;color:var(--muted);transition:.18s;white-space:nowrap}
+.tabs button:hover{color:var(--ink-2)}
+.tabs button.on{background:var(--panel);color:var(--ink);box-shadow:0 2px 10px -6px rgba(70,50,20,.45)}
+
+/* ============ 音频切分 ============ */
+.split-layout{display:grid;grid-template-columns:344px minmax(0,1fr);gap:18px;align-items:start}
+.sp-side{position:sticky;top:18px}
+.drop{
+  border:1.5px dashed #ddcdb2;border-radius:13px;background:var(--panel-2);
+  padding:18px 14px;text-align:center;cursor:pointer;transition:.18s;
+}
+.drop:hover{border-color:#cfae7c;background:#fff}
+.drop.over{border-color:var(--gold);background:var(--gold-l)}
+.drop.ok{border-style:solid;border-color:#cfe0d5;background:#f3f8f5}
+.drop .ico{font-size:23px;line-height:1;opacity:.9}
+.drop b{display:block;margin-top:7px;font-size:12.5px;font-weight:650;word-break:break-all;line-height:1.45}
+.drop span{display:block;margin-top:4px;font-size:11.5px;color:var(--muted);line-height:1.6}
+.drop.busy{opacity:.6;pointer-events:none}
+
+.sp-toolbar{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin:0 0 12px}
+.sp-toolbar .btn{padding:6px 11px;font-size:12.5px;border-radius:9px}
+.tool-sep{width:1px;height:18px;background:var(--line);margin:0 2px}
+.tin{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--muted)}
+.tin input{width:54px;padding:5px 6px;font-size:12.5px;border-radius:8px;background:#fff;border:1px solid var(--line);text-align:center}
+
+.wave-wrap{background:var(--panel-2);border:1px solid var(--line-2);border-radius:13px;padding:9px 11px 6px;margin-bottom:14px}
+#spWave{display:block;width:100%;height:78px;cursor:crosshair}
+.wave-meta{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:10.5px;color:#b6ab98;margin-top:3px;font-variant-numeric:tabular-nums}
+.wave-meta span:nth-child(2){color:#c3b8a4}
+
+.sp-list{display:flex;flex-wrap:wrap;gap:7px;align-content:flex-start;min-height:60px}
+.sp-list:empty{display:none}
+.sp-card{
+  display:inline-flex;flex-direction:column;gap:1px;align-items:flex-start;text-align:left;
+  padding:6px 11px 7px;border-radius:11px;border:1px solid var(--line);background:#fff;
+  transition:.15s;max-width:100%;
+}
+.sp-card:hover{border-color:#dcc9a8;transform:translateY(-1px);box-shadow:0 7px 16px -12px rgba(70,50,20,.55)}
+.sp-card:active{transform:none}
+.sp-card.on{border-color:var(--gold);background:var(--gold-l);box-shadow:0 0 0 3px rgba(185,138,76,.12)}
+.sp-card.played{border-color:#e6d9c0}
+.sp-card .t{font-size:13.5px;font-weight:600;letter-spacing:.01em;line-height:1.3;word-break:break-word}
+.sp-card:hover .t{color:var(--gold-d)}
+.sp-card .m{display:flex;gap:5px;align-items:center;font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums;line-height:1.35}
+.sp-card .tag{color:var(--gold-d);background:#f7ecd8;border-radius:4px;padding:0 4px;font-size:9.5px;letter-spacing:.02em}
+.sp-card.dead{opacity:.55;cursor:not-allowed}
+
+.sp-empty{text-align:center;padding:46px 18px 34px;color:var(--muted)}
+.sp-empty h3{margin:0 0 4px;font-size:15.5px;font-weight:650;color:var(--ink-2)}
+.sp-empty .steps{margin:10px 0 12px}
+.sp-empty p{margin:0 auto;max-width:470px;font-size:12px;line-height:1.85}
+.sp-note{margin-top:14px;font-size:11.5px;color:var(--muted);line-height:1.75}
+
+@media (max-width:900px){
+  .split-layout{grid-template-columns:1fr}
+  .sp-side{position:static;order:2}
+  .sp-main{order:1}
+}
 </style>
 </head>
 <body>
@@ -307,8 +369,12 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:#fff
       </div>
       <div>
         <h1>单词听测</h1>
-        <p>听发音 → 回忆释义 → 自动揭晓</p>
+        <p>听音回忆 · 录音切分</p>
       </div>
+    </div>
+    <div class="tabs" id="tabs">
+      <button class="on" data-view="listen" type="button">单词听测</button>
+      <button data-view="split" type="button">音频切分</button>
     </div>
     <div class="top-actions">
       <button class="btn" id="btnSample">示例词库</button>
@@ -319,6 +385,7 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:#fff
     </div>
   </header>
 
+  <section id="viewListen">
   <div class="layout">
 
     <!-- ============ 左：词库 ============ -->
@@ -474,6 +541,97 @@ mutual,相互的"></textarea>
 
     </main>
   </div>
+  </section>
+
+  <!-- ============ 音频切分 ============ -->
+  <section id="viewSplit" class="split-layout" hidden>
+
+    <aside class="panel lib sp-side">
+      <div class="panel-hd">
+        <h2>素 材</h2>
+        <span class="badge" id="spFileTag">未选音频</span>
+      </div>
+
+      <div class="drop" id="spDrop">
+        <input type="file" id="spAudio" accept="audio/*,.mp3,.m4a,.wav,.aac,.ogg,.flac" hidden>
+        <div class="ico">🎧</div>
+        <b id="spDropTitle">点这里选音频，或直接拖进来</b>
+        <span id="spDropSub">MP3 / M4A / WAV，建议用一段逐句朗读的录音</span>
+      </div>
+
+      <div class="field" style="margin-top:12px">
+        <label>原文文本 · 要和录音内容一致</label>
+        <textarea id="spText" spellcheck="false" placeholder="把这段录音的原文粘进来。
+逐句朗读的素材效果最好：句号、问号处通常就是换气停顿。"></textarea>
+        <div class="row-btns">
+          <label class="btn">上传 txt / srt<input type="file" id="spTxtFile" accept=".txt,.md,.srt,.vtt,text/plain" hidden></label>
+          <button class="btn" id="spDemo" type="button">填入示例</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>短语识别</label>
+        <select id="spPhraseMode">
+          <option value="auto">自动识别（内置常用短语库）</option>
+          <option value="custom">只用我指定的短语</option>
+          <option value="off">不识别短语</option>
+        </select>
+      </div>
+
+      <div class="field" id="spCustomWrap">
+        <label>自定义短语 · 每行一个</label>
+        <textarea id="spCustomPhrases" spellcheck="false" style="min-height:58px" placeholder="look after&#10;in charge of"></textarea>
+      </div>
+
+      <label class="switch" style="padding-top:0"><input type="checkbox" id="spPhraseFirst" checked>短语优先（词只在短语里出现就不再单列）</label>
+      <label class="switch" style="padding-top:9px"><input type="checkbox" id="spFilterStop">过滤 the / is / of 这类虚词</label>
+
+      <button class="btn gold" id="spBuild" style="width:100%;justify-content:center;margin-top:12px" type="button">整理并切分</button>
+      <p class="hint" id="spHint">切点靠「录音停顿 + 文本长度」对齐：句间有正常停顿，切点就会落在真实换气处。文本里带 SRT 时间轴时会直接用时间轴，最准。</p>
+    </aside>
+
+    <main class="panel stage sp-main">
+      <div class="stage-top">
+        <div class="counter">共 <b id="spCount">0</b> 个词 / 短语</div>
+        <div class="chips">
+          <span class="chip">单词 <b id="spWordCount">0</b></span>
+          <span class="chip">短语 <b id="spPhraseCount">0</b></span>
+          <span class="chip ok">音频切分 <b id="spSegCount">0</b> 段</span>
+          <span class="chip warn" id="spDurChip" hidden>时长 <b id="spDur">0:00</b></span>
+        </div>
+      </div>
+
+      <div class="wave-wrap" id="spWaveWrap" hidden>
+        <canvas id="spWave"></canvas>
+        <div class="wave-meta">
+          <span id="spWaveL">0:00</span>
+          <span id="spWaveTip">点波形任意位置可从该处试听</span>
+          <span id="spWaveR">0:00</span>
+        </div>
+      </div>
+
+      <div class="sp-toolbar" id="spToolbar" hidden>
+        <button class="btn gold" id="spPlayAll" type="button">▶ 连读全部</button>
+        <button class="btn" id="spStopBtn" type="button">■ 停止</button>
+        <span class="tool-sep"></span>
+        <label class="tin">重复<input type="number" id="spRepeat" min="1" max="5" step="1" value="1"></label>
+        <label class="tin">间隔<input type="number" id="spGapInp" min="0" max="9" step="0.5" value="0.8"></label>
+        <span class="tool-sep"></span>
+        <button class="btn" id="spImport" type="button">导入到听测</button>
+        <button class="btn" id="spExport" type="button">导出词表</button>
+      </div>
+
+      <div class="sp-list" id="spList"></div>
+
+      <div class="sp-empty" id="spEmpty">
+        <h3>三步得到一张「可点读」的词表</h3>
+        <div class="steps"><span>① 选音频</span><span>② 粘原文</span><span>③ 整理并切分</span></div>
+        <p>系统会把原文里的单词与短语汇总去重（重复只留一条，已包含在短语里的词不再单列），
+        再按停顿把音频切成对应的小段。之后点任意词卡，放的就是它在这段录音里的那一小段。</p>
+        <p class="sp-note">纯文本也能整理词表，只是不能点读；没有上传音频时按钮依旧会给出词表。</p>
+      </div>
+    </main>
+  </section>
 </div>
 
 <div id="toast"></div>
@@ -1714,6 +1872,7 @@ function bind() {
 
   /* 键盘 */
   document.addEventListener("keydown", e => {
+    if (viewName !== "listen") return;
     const tag = (e.target.tagName || "").toLowerCase();
     if (tag === "input" || tag === "textarea" || tag === "select") return;
     const gateOpen = !$("#gateStart").classList.contains("hide");
@@ -1762,13 +1921,1039 @@ function resetCounter() {
   paintStats();
 }
 
-/* ---------------- 启动 ---------------- */
+/* =========================================================
+   音频切分
+   上传音频 + 原文 → 汇总单词/短语（去重、短语优先）
+   → 用「停顿检测 + 文本长度」把音频对齐并切成逐词小段
+   ========================================================= */
+const SP = {
+  ctx: null, buffer: null, fileName: "",
+  sentences: [], units: [], groups: [],
+  peaks: null, regions: [],
+  srcs: [], token: 0, cur: -1, curSeg: null, raf: 0, playAt: 0,
+  repeat: 1, gap: 0.8, mode: "auto", method: ""
+};
+
+/* ---------- 常用短语（动词短语 + 固定搭配） ---------- */
+const PHRASE_SRC = [
+  "ask for|back up|blow up|break down|break in|break off|break out|break up|bring about|bring back|bring down|bring forward|bring in|bring out|bring up|brush up|build up|burn down|burn out|call back|call for|call off|call on|call out|call up|calm down|care for|carry on|carry out|catch on|catch up|check in|check out|check up|cheer up|clean up|clear up|come about|come across|come apart|come back|come down|come forward|come from|come in|come off|come on|come out|come over|come round|come through|come up|come up with|count on|cross out|cut back|cut down|cut in|cut off|cut out|cut up|deal with|die down|die out|do away with|do up|do without|draw up|dress up|drop by|drop in|drop off|drop out|eat out|end up|face up to|fall apart|fall behind|fall down|fall for|fall off|fall out|fall over|figure out|fill in|fill out|fill up|find out|fit in|focus on|get across|get along|get around|get away|get back|get by|get down|get in|get off|get on|get out|get over|get rid of|get through|get together|get up|give away|give back|give in|give out|give up|go about|go after|go ahead|go away|go back|go by|go down|go for|go in|go off|go on|go out|go over|go through|go up|go without|grow up|hand in|hand out|hand over|hang on|hang out|hang up|hold back|hold on|hold up|hurry up|keep away|keep down|keep in|keep off|keep on|keep out|keep up|knock down|knock out|lay off|lay out|leave behind|leave out|let down|let in|let off|let out|lie down|line up|live on|live up to|look after|look around|look at|look back|look down on|look for|look forward to|look into|look out|look over|look through|look up|look up to|make for|make out|make up|make up for|mix up|move on|pass away|pass by|pass on|pass out|pay back|pay off|pick out|pick up|point out|pull down|pull off|pull out|pull over|pull through|pull up|put aside|put away|put back|put down|put forward|put in|put off|put on|put out|put through|put up|put up with|ring up|rule out|run after|run away|run into|run off|run out of|run out|run over|run through|see off|see through|sell out|send for|send off|set about|set aside|set back|set down|set off|set out|set up|settle down|show off|show up|shut down|shut off|shut up|sit down|sit up|slow down|sort out|speak up|stand by|stand for|stand out|stand up for|stand up|start over|stay away|stay up|stick to|take after|take apart|take away|take back|take down|take in|take off|take on|take out|take over|take up|talk about|talk into|talk over|tear down|tear up|tell off|think about|think of|think over|think through|throw away|throw out|throw up|try on|try out|turn around|turn away|turn back|turn down|turn in|turn into|turn off|turn on|turn out|turn to|turn up|wake up|warm up|wash up|watch out|wear off|wear out|work on|work out|write down|write off|write up",
+  "according to|account for|adapt to|agree on|agree with|aim at|apply for|apply to|arrive at|as a result of|as a result|as far as|as long as|as soon as|as well as|at first|at last|at least|at once|at present|at the same time|be able to|be about to|be aware of|be fond of|be interested in|be involved in|be known as|be known for|be made of|be made up of|be responsible for|be short of|be supposed to|be used to|because of|believe in|belong to|by accident|by chance|by heart|by mistake|by the way|care about|carry on with|come into being|compete with|concentrate on|consist of|contribute to|cope with|depend on|depend upon|due to|each other|even if|even though|except for|far from|for example|for instance|for the sake of|from now on|get in touch|give birth to|give rise to|had better|hold on to|in addition to|in addition|in advance|in case of|in case|in charge of|in common|in danger|in fact|in favour of|in front of|in general|in need of|in order to|in order that|in other words|in particular|in person|in place of|in public|in return|in spite of|in terms of|in the end|in the meantime|in time|in touch with|in trouble|instead of|keep in touch|lead to|listen to|make a difference|make a living|make sense|make sure|make up one's mind|no longer|not only|now and then|of course|on average|on behalf of|on board|on foot|on purpose|on sale|on time|once again|once more|one another|out of date|out of order|out of work|participate in|pay attention to|play a role|point of view|prepare for|prevent from|protect from|rather than|refer to|regardless of|result in|right away|so far|so that|sooner or later|such as|take advantage of|take care of|take part in|take place|take pride in|thanks to|the same as|to some extent|up to date|wait for|with regard to|worry about"
+];
+const PHRASES = (() => {
+  const set = new Set();
+  PHRASE_SRC.join("|").split("|").forEach(p => {
+    const t = p.trim().toLowerCase().replace(/\s+/g, " ");
+    if (t && t.indexOf(" ") > 0) set.add(t);
+  });
+  return Array.from(set);
+})();
+
+/* 虚词：可选过滤，避免词表里全是 the / of / is */
+const STOP_WORDS = (() => {
+  const s = "a an the and or but if so as of to in on at by for from with without into onto over under about above after before between during through up down out off again further then once here there when where why how all any both each few more most other some such no nor not only own same than too very can will just should now is are was were be been being am do does did have has had having i you he she it we they me him her us them my your his its our their this that these those what which who whom whose";
+  return new Set(s.split(/\s+/));
+})();
+
+/* 不规则动词的过去式/过去分词 → 原形，让 broke out / came up with 也能被认出来 */
+const IRREG = {
+  went: "go", gone: "go", broke: "break", broken: "break", came: "come", made: "make",
+  took: "take", taken: "take", gave: "give", given: "give", got: "get", gotten: "get",
+  ran: "run", threw: "throw", thrown: "throw", wrote: "write", written: "write",
+  spoke: "speak", spoken: "speak", stood: "stand", sat: "sit", brought: "bring",
+  bought: "buy", caught: "catch", drove: "drive", driven: "drive", ate: "eat", eaten: "eat",
+  fell: "fall", fallen: "fall", felt: "feel", found: "find", grew: "grow", grown: "grow",
+  held: "hold", kept: "keep", knew: "know", known: "know", laid: "lay", left: "leave",
+  lost: "lose", paid: "pay", said: "say", saw: "see", seen: "see", sold: "sell",
+  sent: "send", shook: "shake", shaken: "shake", showed: "show", shown: "show",
+  slept: "sleep", spent: "spend", taught: "teach", told: "tell", thought: "think",
+  understood: "understand", woke: "wake", woken: "wake", wore: "wear", worn: "wear",
+  won: "win", led: "lead", lent: "lend", built: "build", dealt: "deal", dug: "dig",
+  drew: "draw", drawn: "draw", fed: "feed", fought: "fight", hid: "hide", hidden: "hide",
+  lit: "light", rode: "ride", rose: "rise", risen: "rise", rang: "ring", rung: "ring",
+  sought: "seek", struck: "strike", swept: "sweep", swam: "swim", tore: "tear", torn: "tear"
+};
+
+/* ---------- 文本工具 ---------- */
+function spNormToken(s) {
+  return String(s || "").toLowerCase().replace(/[^a-z]/g, "");
+}
+/** 粗略词干：looked→look, studies→study, running→run。只为短语匹配服务 */
+function spStem(w) {
+  const s = spNormToken(w);
+  if (s.length <= 3) return s;
+  if (/ies$/.test(s)) return s.slice(0, -3) + "y";
+  if (/(ss|x|ch|sh|z|o)es$/.test(s)) return s.slice(0, -2);
+  if (/[^su]s$/.test(s)) return s.slice(0, -1);
+  if (/ing$/.test(s) && s.length > 5) {
+    const b = s.slice(0, -3);
+    return /([bdfgklmnprt])\1$/.test(b) ? b.slice(0, -1) : b;
+  }
+  if (/ed$/.test(s) && s.length > 4) {
+    const b = s.slice(0, -2);
+    return /([bdfgklmnprt])\1$/.test(b) ? b.slice(0, -1) : b;
+  }
+  return s;
+}
+function spKeys(w) {
+  const b = spNormToken(w);
+  const out = [b];
+  const st = spStem(w);
+  if (out.indexOf(st) < 0) out.push(st);
+  const e = st + "e";
+  if (out.indexOf(e) < 0) out.push(e);
+  const ir = IRREG[b] || IRREG[st];
+  if (ir && out.indexOf(ir) < 0) out.push(ir);
+  return out;
+}
+/** 音节估算：只用于把句子时长按比例分给每个词 */
+function spSyll(w) {
+  let s = String(w).toLowerCase().replace(/[^a-z]/g, "");
+  if (!s) return 1;
+  s = s.replace(/qu/g, "q");            // quiet / question：u 不单独成音节
+  const g = s.match(/[aeiouy]+/g);
+  let n = g ? g.length : 1;
+  if (/[^aeiouy]e$/.test(s) && n > 1) n--;
+  if (/[^aeiouy]le$/.test(s)) n++;
+  return Math.max(1, Math.min(7, n));
+}
+/** 一个词大致占多久：音节 + 长度（quiet 这种「看起来短其实两个音节」的词靠长度兜住）+ 标点停顿 */
+function spWordWeight(tok) {
+  const letters = String(tok.w).replace(/[^A-Za-z]/g, "").length;
+  return 0.14 * spSyll(tok.w) + 0.032 * letters + 0.04 + (tok.p === 2 ? 0.55 : tok.p === 1 ? 0.28 : 0.04);
+}
+
+/* 句子切分：按行 + 句末标点，过长再按逗号/词数切 */
+function spSplitByComma(s) {
+  const seg = s.split(/([,;:，；：])/);
+  const out = []; let cur = "";
+  seg.forEach(p => {
+    cur += p;
+    if (/^[,;:，；：]$/.test(p)) { out.push(cur); cur = ""; }
+  });
+  if (cur) out.push(cur);
+  return out.map(x => x.trim()).filter(Boolean);
+}
+function spChunkLong(s, maxWords) {
+  const re = /[A-Za-z][A-Za-z'’\-]*/g;
+  const idx = []; let m;
+  while ((m = re.exec(s))) idx.push(m.index);
+  if (idx.length <= maxWords) return [s];
+  const out = []; let start = 0, count = 0;
+  for (let i = 0; i < idx.length; i++) {
+    count++;
+    if (count >= maxWords) {
+      const cut = i + 1 < idx.length ? idx[i + 1] : s.length;
+      const piece = s.slice(start, cut).trim();
+      if (piece) out.push(piece);
+      start = cut; count = 0;
+    }
+  }
+  if (start < s.length) { const piece = s.slice(start).trim(); if (piece) out.push(piece); }
+  return out;
+}
+function spSplitSentences(text) {
+  const lines = String(text).replace(/\r\n?/g, "\n").replace(/\u00a0/g, " ").split("\n");
+  const raw = [];
+  lines.forEach(line => {
+    const s = line.trim();
+    if (!s) return;
+    let buf = "";
+    for (let i = 0; i < s.length; i++) {
+      const ch = s[i];
+      buf += ch;
+      if (ch === "." || ch === "!" || ch === "?" || ch === "…") {
+        const nx = s[i + 1] || "";
+        if (!nx || /\s/.test(nx)) {
+          const tail = buf.trim().split(/\s+/).pop() || "";
+          if (/^(mr|mrs|ms|dr|prof|sr|jr|st|vs|etc|no|fig|approx)\.$/i.test(tail)) continue;
+          const t = buf.trim();
+          if (t) raw.push(t);
+          buf = "";
+        }
+      }
+    }
+    if (buf.trim()) raw.push(buf.trim());
+  });
+  const out = [];
+  raw.forEach(s => {
+    const n = (s.match(/[A-Za-z][A-Za-z'’\-]*/g) || []).length;
+    if (n <= 32) { out.push(s); return; }
+    const parts = spSplitByComma(s);
+    if (parts.length > 1) {
+      parts.forEach(p => {
+        const pn = (p.match(/[A-Za-z][A-Za-z'’\-]*/g) || []).length;
+        if (pn <= 32) out.push(p);
+        else spChunkLong(p, 24).forEach(x => out.push(x));
+      });
+    } else {
+      spChunkLong(s, 24).forEach(x => out.push(x));
+    }
+  });
+  return out;
+}
+function spTokens(s) {
+  const re = /[A-Za-z][A-Za-z'’\-]*/g;
+  const toks = []; let m;
+  while ((m = re.exec(s))) {
+    const tail = s.slice(m.index + m[0].length, m.index + m[0].length + 3);
+    let p = 0;
+    if (/^\s*[.!?;:]/.test(tail)) p = 2;
+    else if (/^\s*[,，、]/.test(tail)) p = 1;
+    toks.push({ w: m[0], p });
+  }
+  return toks;
+}
+
+/* ---------- 短语匹配 ---------- */
+function spBuildPhraseMap(custom) {
+  const map = new Map();
+  const add = p => {
+    const parts = String(p).trim().toLowerCase().split(/\s+/).map(spNormToken).filter(Boolean);
+    if (parts.length < 2) return;
+    const k = parts[0];
+    if (!map.has(k)) map.set(k, []);
+    const list = map.get(k);
+    const key = parts.join(" ");
+    if (list.some(x => x.key === key)) return;
+    list.push({ parts, key });
+  };
+  if (SP.mode !== "custom") PHRASES.forEach(add);
+  (custom || []).forEach(add);
+  map.forEach(list => list.sort((a, b) => b.parts.length - a.parts.length));
+  return map;
+}
+function spHit(got, want) {
+  const n = spNormToken(got);
+  if (!n) return false;
+  return n === want || spStem(got) === want || IRREG[n] === want;
+}
+function spMatchAt(toks, i, map) {
+  const keys = spKeys(toks[i].w);
+  for (let k = 0; k < keys.length; k++) {
+    const list = map.get(keys[k]);
+    if (!list) continue;
+    for (let n = 0; n < list.length; n++) {
+      const ph = list[n];
+      if (i + ph.parts.length > toks.length) continue;
+      let ok = true;
+      for (let j = 1; j < ph.parts.length; j++) {
+        if (spHit(toks[i + j].w, ph.parts[j])) continue;
+        ok = false; break;
+      }
+      if (ok) return ph;
+    }
+  }
+  return null;
+}
+
+/* ---------- SRT / VTT 时间轴 ---------- */
+function spParseCues(text) {
+  const src = String(text).replace(/\r\n?/g, "\n");
+  if (src.indexOf("-->") < 0) return null;
+  const t2s = (h, m, s, ms) => (+h) * 3600 + (+m) * 60 + (+s) + (+String(ms).padEnd(3, "0").slice(0, 3)) / 1000;
+  const out = [];
+  src.split(/\n{2,}/).forEach(block => {
+    const lines = block.split("\n").filter(x => x.trim());
+    const ti = lines.findIndex(x => x.indexOf("-->") >= 0);
+    if (ti < 0) return;
+    const mm = lines[ti].match(/(\d{1,3}):(\d{2}):(\d{2})[,.](\d{1,3})\s*-->\s*(\d{1,3}):(\d{2}):(\d{2})[,.](\d{1,3})/);
+    if (!mm) return;
+    const s = t2s(mm[1], mm[2], mm[3], mm[4]);
+    const e = t2s(mm[5], mm[6], mm[7], mm[8]);
+    const txt = lines.slice(ti + 1).join(" ").replace(/<[^>]+>/g, "").replace(/\{[^}]*\}/g, "").trim();
+    if (txt && e > s) out.push({ s, e, text: txt });
+  });
+  out.sort((a, b) => a.s - b.s);
+  return out.length >= 2 ? out : null;
+}
+
+/* ---------- 停顿检测 ---------- */
+function spDetect(buffer) {
+  const sr = buffer.sampleRate, n = buffer.length, ch = buffer.numberOfChannels;
+  const chans = [];
+  for (let c = 0; c < ch; c++) chans.push(buffer.getChannelData(c));
+  const hop = Math.max(1, Math.round(sr * 0.02));
+  const win = Math.max(32, Math.round(sr * 0.04));
+  const frames = Math.max(1, Math.floor(Math.max(0, n - win) / hop) + 1);
+  const rms = new Float32Array(frames);
+  let sum = 0;
+  const initLen = Math.min(win, n);
+  for (let c = 0; c < ch; c++) {
+    const d = chans[c];
+    for (let i = 0; i < initLen; i++) { const v = d[i]; sum += v * v; }
+  }
+  sum /= ch;
+  for (let f = 0; f < frames; f++) {
+    rms[f] = Math.sqrt(Math.max(0, sum) / win);
+    const outBase = f * hop, inBase = outBase + win;
+    for (let k = 0; k < hop; k++) {
+      const oa = outBase + k, ib = inBase + k;
+      let a = 0, b = 0;
+      for (let c = 0; c < ch; c++) {
+        const d = chans[c];
+        if (oa < n) { const v = d[oa]; a += v * v; }
+        if (ib < n) { const v = d[ib]; b += v * v; }
+      }
+      sum += (b - a) / ch;
+    }
+    if (sum < 0) sum = 0;
+  }
+  // 自适应阈值：用分位数而不是平均值，长静音不会把阈值拉低
+  const sorted = Array.from(rms).sort((a, b) => a - b);  const q = p => sorted[Math.min(sorted.length - 1, Math.max(0, Math.round(p * (sorted.length - 1))))];
+  const floor = q(0.08), high = q(0.9), peak = sorted[sorted.length - 1] || 0;
+  let on = Math.max(floor * 3, high * 0.18, peak * 0.015, 0.0015);
+  let off = Math.max(floor * 1.8, high * 0.1, peak * 0.008, 0.0009);
+  if (on < off * 1.5) on = off * 1.5;
+
+  const FR = hop / sr;
+  const minGapF = Math.max(1, Math.round(0.18 / FR));
+  const minSpeechF = Math.max(1, Math.round(0.08 / FR));
+  const flags = new Uint8Array(frames);
+  let active = false;
+  for (let f = 0; f < frames; f++) {
+    if (active) { if (rms[f] < off) active = false; }
+    else if (rms[f] > on) active = true;
+    flags[f] = active ? 1 : 0;
+  }
+  const duration = n / sr;
+  const regions = [];
+  let i = 0;
+  while (i < frames) {
+    if (!flags[i]) { i++; continue; }
+    let j = i, last = i;
+    while (j < frames && (flags[j] || j - last < minGapF)) {
+      if (flags[j]) last = j;
+      j++;
+    }
+    if (last - i + 1 >= minSpeechF) regions.push({ start: i * FR, end: (last + 1) * FR });
+    i = last + 1;
+  }
+  if (!regions.length) regions.push({ start: 0, end: duration });
+  const pad = 0.06;
+  const raw = regions.map(r => ({ start: r.start, end: r.end }));
+  for (let k = 0; k < regions.length; k++) {
+    const prevEnd = k > 0 ? regions[k - 1].end : 0;
+    const nextStart = k < regions.length - 1 ? regions[k + 1].start : duration;
+    regions[k].start = Math.max(prevEnd, regions[k].start - pad);
+    regions[k].end = Math.min(nextStart, Math.max(regions[k].start + 0.05, regions[k].end + pad));
+  }
+  SP.env = { rms, hop, sr };
+  SP.regionsRaw = raw;
+  return regions;
+}
+
+/**
+ * 把切点吸到局部能量低谷。
+ * 纯按音节比例分配只能保证「大致对」，但词与词之间通常有一小段最安静的缝隙，
+ * 把切点挪到这 20ms 以内，点读时就不容易切进词里或拖上前后半个词。
+ */
+function spSnap(t, lo, hi) {
+  const env = SP.env;
+  if (!env || !env.rms.length) return t;
+  const FR = env.hop / env.sr;
+  const rad = Math.max(2, Math.round(0.065 / FR));
+  const c = Math.round(t / FR);
+  const a = Math.max(1, c - rad), z = Math.min(env.rms.length - 2, c + rad);
+  if (z <= a) return t;
+  let best = -1, bestV = Infinity;
+  for (let i = a; i <= z; i++) {
+    const v = env.rms[i - 1] * 0.5 + env.rms[i] + env.rms[i + 1] * 0.5;
+    if (v < bestV) { bestV = v; best = i; }
+  }
+  if (best < 0) return t;
+  const nt = best * FR;
+  return (nt < lo || nt > hi) ? t : nt;
+}
+
+/* ---------- 句子 ↔ 语音段 对齐 ---------- */
+function spAlignSentences(sents, regions, duration) {
+  const n = sents.length;
+  const ws = sents.map(s => {
+    let t = 0;
+    s.toks.forEach(k => { t += spWordWeight(k); });
+    return Math.max(0.4, t);
+  });
+  const total = ws.reduce((a, b) => a + b, 0) || 1;
+  const start = regions.length ? Math.max(0, regions[0].start) : 0;
+  const end = regions.length ? Math.min(duration, regions[regions.length - 1].end) : duration;
+  const span = Math.max(0.2, end - start);
+  const K = Math.max(0, n - 1);
+  const targets = [];
+  let acc = 0;
+  for (let i = 0; i < K; i++) { acc += ws[i]; targets.push(start + span * acc / total); }
+
+  // 切点候选：放在「下一段语音开口之前」而不是停顿正中，
+  // 这样上一句不会吃掉下一句的头，下一句的第一个词也不会带着一大段静音。
+  const rawR = (SP.regionsRaw && SP.regionsRaw.length === regions.length) ? SP.regionsRaw : regions;
+  const gaps = [];
+  for (let i = 0; i < rawR.length - 1; i++) {
+    const cut = Math.max(rawR[i].end + 0.03, rawR[i + 1].start - 0.05);
+    gaps.push(cut);
+  }
+  let M = gaps.length;
+  // 极端长音频时限制 DP 规模
+  let stride = 1;
+  if (K > 0 && K * M > 3000000) stride = Math.ceil(K * M / 3000000);
+  const gs = [];
+  for (let i = 0; i < gaps.length; i += stride) gs.push(gaps[i]);
+  M = gs.length;
+
+  const tol = Math.max(0.35, Math.min(2.6, span / Math.max(6, n) * 1.1));
+  const bounds = new Array(K).fill(null);
+  if (K > 0 && M > 0) {
+    const INF = 1e18;
+    const skipB = tol * 1.15;
+    const dp = []; for (let i = 0; i <= K; i++) dp.push(new Float64Array(M + 1).fill(INF));
+    const bk = []; for (let i = 0; i <= K; i++) bk.push(new Int8Array(M + 1));
+    for (let j = 0; j <= M; j++) dp[0][j] = 0;
+    for (let i = 1; i <= K; i++) {
+      const tgt = targets[i - 1];
+      for (let j = 1; j <= M; j++) {
+        let best = dp[i][j - 1], ch = 1;                    // 这个间隙不用
+        const vSkip = dp[i - 1][j] + skipB;                 // 这个边界不吸附，退回按比例
+        if (vSkip < best) { best = vSkip; ch = 3; }
+        const d = Math.abs(gs[j - 1] - tgt);
+        const vMatch = dp[i - 1][j - 1] + (d > tol ? tol * 4 + d : d);
+        if (vMatch < best) { best = vMatch; ch = 2; }
+        dp[i][j] = best; bk[i][j] = ch;
+      }
+    }
+    let i = K, j = M;
+    while (i > 0 && j > 0) {
+      const ch = bk[i][j];
+      if (ch === 2) { bounds[i - 1] = gs[j - 1]; i--; j--; }
+      else if (ch === 3) { i--; }
+      else { j--; }
+    }
+  }
+  const cuts = [];
+  let prev = start;
+  for (let i = 0; i < K; i++) {
+    let t = bounds[i] != null ? bounds[i] : targets[i];
+    const minT = prev + 0.08;
+    const maxT = Math.max(minT, end - 0.08 * (K - i));
+    t = Math.max(minT, Math.min(maxT, t));
+    cuts.push(t); prev = t;
+  }
+  const spans = [];
+  let cur = start;
+  for (let i = 0; i < n; i++) {
+    const e = i < K ? cuts[i] : end;
+    spans.push({ s: cur, e: Math.max(cur + 0.04, e) });
+    cur = spans[i].e;
+  }
+  return spans;
+}
+
+/* ---------- 分析：文本 → 单位 → 分组 ---------- */
+function spAnalyze() {
+  const raw = $("#spText").value;
+  if (!raw.trim()) { toast("先把原文粘进来"); return null; }
+  SP.mode = $("#spPhraseMode").value;
+  const cues = spParseCues(raw);
+  let sents = [];
+  if (cues) {
+    sents = cues.map(c => ({ text: c.text, toks: spTokens(c.text), cue: c }));
+  } else {
+    sents = spSplitSentences(raw).map(t => ({ text: t, toks: spTokens(t) }));
+  }
+  sents = sents.filter(s => s.toks.length);
+  if (!sents.length) { toast("原文里没找到英文单词"); return null; }
+
+  const custom = $("#spCustomPhrases").value.split(/\n+/).map(x => x.trim()).filter(Boolean);
+  const pmap = spBuildPhraseMap(custom);
+
+  const units = [];
+  sents.forEach((s, si) => {
+    let i = 0;
+    while (i < s.toks.length) {
+      const ph = spMatchAt(s.toks, i, pmap);
+      if (ph) {
+        units.push({
+          text: s.toks.slice(i, i + ph.parts.length).map(t => t.w).join(" "),
+          kind: "phrase", si, wi: i, len: ph.parts.length, s: 0, e: 0
+        });
+        i += ph.parts.length;
+      } else {
+        units.push({ text: s.toks[i].w, kind: "word", si, wi: i, len: 1, s: 0, e: 0 });
+        i++;
+      }
+    }
+  });
+
+  /* ---- 时间轴 ---- */
+  SP.method = "";
+  if (SP.buffer) {
+    const dur = SP.buffer.duration;
+    let spans;
+    if (cues) {
+      spans = sents.map(c => ({
+        s: Math.max(0, Math.min(dur, c.cue.s)),
+        e: Math.max(0.05, Math.min(dur, c.cue.e))
+      }));
+      for (let i = 0; i < spans.length; i++) {
+        if (i > 0 && spans[i].s < spans[i - 1].e) spans[i].s = spans[i - 1].e;
+        if (spans[i].e <= spans[i].s + 0.03) spans[i].e = Math.min(dur, spans[i].s + 0.2);
+      }
+      SP.method = "srt";
+    } else {
+      const regions = spDetect(SP.buffer);
+      SP.regions = regions;
+      spans = spAlignSentences(sents, regions, dur);
+      SP.method = "vad";
+    }
+    // 句内按「音节数 + 标点停顿」分配每个词的时长，再把切点吸到能量低谷
+    const tokTimes = sents.map((s, si) => {
+      const box = spans[si];
+      const ws = s.toks.map(spWordWeight);
+      const sum = ws.reduce((a, b) => a + b, 0) || 1;
+      const total = Math.max(0.05, box.e - box.s);
+      // 每个词至少分到一小段，否则 thin 词会分到 0.08s，点读时直接被切掉
+      const minDur = Math.min(0.22, Math.max(0.07, total / ws.length * 0.55));
+      let durs = ws.map(w => Math.max(minDur, total * w / sum));
+      const dsum = durs.reduce((a, b) => a + b, 0) || 1;
+      durs = durs.map(d => d * total / dsum);
+      const b = [box.s];
+      let acc = box.s;
+      for (let i = 0; i < durs.length; i++) { acc += durs[i]; b.push(Math.min(box.e, acc)); }
+      b[b.length - 1] = box.e;
+      for (let i = 1; i < b.length - 1; i++) {
+        const lo = b[i - 1] + 0.04, hi = b[i + 1] - 0.04;
+        if (hi > lo) b[i] = Math.min(hi, spSnap(b[i], lo, hi) + 0.03);
+      }
+      // 吸附会让相邻切点互相靠拢，这里再兜一层最小词长
+      const minGap = Math.min(0.15, Math.max(0.05, total / (ws.length + 1) * 0.5));
+      for (let i = 1; i < b.length - 1; i++) if (b[i] < b[i - 1] + minGap) b[i] = b[i - 1] + minGap;
+      for (let i = b.length - 2; i >= 1; i--) if (b[i] > b[i + 1] - minGap) b[i] = b[i + 1] - minGap;
+      for (let i = 1; i < b.length - 1; i++) if (b[i] < b[i - 1] + 0.02) b[i] = b[i - 1] + 0.02;
+      return s.toks.map((k, i) => ({ s: b[i], e: b[i + 1] }));
+    });
+    units.forEach(u => {
+      const a = tokTimes[u.si][u.wi];
+      const b = tokTimes[u.si][u.wi + u.len - 1];
+      u.s = Math.max(0, a.s - 0.02);
+      u.e = Math.min(dur, b.e + 0.02);
+    });
+  } else {
+    SP.regions = [];
+  }
+
+  /* ---- 去重 + 短语优先 ---- */
+  const phraseFirst = $("#spPhraseFirst").checked;
+  const filterStop = $("#spFilterStop").checked;
+  const map = new Map();
+  units.forEach((u, idx) => {
+    const key = u.text.toLowerCase().replace(/\s+/g, " ").trim();
+    if (filterStop && u.kind === "word" && STOP_WORDS.has(key)) return;
+    let g = map.get(key);
+    if (!g) {
+      g = { key, text: u.text, kind: u.kind, occ: [], sent: sents[u.si].text, cases: Object.create(null) };
+      map.set(key, g);
+    }
+    g.occ.push(idx);
+    g.cases[u.text] = (g.cases[u.text] || 0) + 1;
+    if (u.kind === "phrase" && g.kind !== "phrase") { g.kind = "phrase"; g.sent = sents[u.si].text; }
+  });
+  let groups = Array.from(map.values());
+  if (phraseFirst) {
+    const inPh = new Set();
+    groups.forEach(g => { if (g.kind === "phrase") g.key.split(" ").forEach(w => inPh.add(w)); });
+    groups = groups.filter(g => g.kind === "phrase" || !inPh.has(g.key));
+  }
+  // 同一词的不同大小写里，显示出现次数最多的那个（句首大写的 The 就不会盖住 the）
+  groups.forEach(g => {
+    let best = null, bn = -1;
+    Object.keys(g.cases).forEach(k => { if (g.cases[k] > bn) { bn = g.cases[k]; best = k; } });
+    if (!best) return;
+    // 只在句首出现过、又是个短词/虚词：多半是被句首大写带出来的，还原成小写
+    const midCount = g.occ.filter(i => units[i].wi > 0).length;
+    if (midCount === 0 && /^[A-Z][a-z]+$/.test(best) && (g.key.length <= 4 || STOP_WORDS.has(g.key))) {
+      best = best.toLowerCase();
+    }
+    g.text = best;
+  });
+  groups.forEach(g => { g.seg = units[g.occ[0]]; });
+
+  SP.sentences = sents;
+  SP.units = units;
+  SP.groups = groups;
+  return { cueCount: cues ? cues.length : 0, sentences: sents.length };
+}
+
+/* ---------- 音频解码 ---------- */
+function spEnsureCtx() {
+  if (!SP.ctx) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) throw new Error("no-audioctx");
+    SP.ctx = new AC();
+  }
+  if (SP.ctx.state === "suspended") { try { SP.ctx.resume(); } catch (e) { } }
+  return SP.ctx;
+}
+function spDecodeFile(file) {
+  return spEnsureCtx().decodeAudioData
+    ? new Promise((resolve, reject) => {
+      const rd = new FileReader();
+      rd.onerror = () => reject(new Error("read"));
+      rd.onload = () => {
+        let settled = false;
+        const ok = b => { if (!settled) { settled = true; resolve(b); } };
+        const no = e => { if (!settled) { settled = true; reject(e || new Error("decode")); } };
+        let p;
+        try { p = SP.ctx.decodeAudioData(rd.result, ok, no); } catch (e) { no(e); return; }
+        if (p && typeof p.then === "function") p.then(ok).catch(no);
+      };
+      rd.readAsArrayBuffer(file);
+    })
+    : Promise.reject(new Error("no-decode"));
+}
+
+function fmtTime(t) {
+  t = Math.max(0, Number(t) || 0);
+  const m = Math.floor(t / 60), s = t - m * 60;
+  return m + ":" + (s < 10 ? "0" : "") + s.toFixed(1).replace(/\.0$/, ".0");
+}
+
+async function spPickAudio(file) {
+  if (!file) return;
+  if (!/^audio\//.test(file.type) && !/\.(mp3|m4a|aac|wav|ogg|flac|opus|webm|mp4)$/i.test(file.name)) {
+    toast("这不是音频文件");
+    return;
+  }
+  const drop = $("#spDrop");
+  drop.classList.add("busy");
+  $("#spFileTag").textContent = "解码中…";
+  $("#spDropTitle").textContent = file.name;
+  $("#spDropSub").textContent = "正在解码，稍等…";
+  try {
+    const buf = await spDecodeFile(file);
+    spStop();
+    SP.buffer = buf;
+    SP.fileName = file.name;
+    drop.classList.add("ok");
+    drop.classList.remove("busy");
+    $("#spFileTag").textContent = fmtTime(buf.duration);
+    $("#spDropTitle").textContent = file.name;
+    $("#spDropSub").textContent = "时长 " + fmtTime(buf.duration) + " · " +
+      (buf.numberOfChannels > 1 ? "立体声" : "单声道") + " · " + Math.round(buf.sampleRate / 1000) + " kHz";
+    $("#spDurChip").hidden = false;
+    $("#spDur").textContent = fmtTime(buf.duration);
+    $("#spWaveWrap").hidden = false;
+    spBuildPeaks();
+    spDrawWave();
+    if (SP.groups.length) {
+      SP.groups = []; SP.units = []; SP.sentences = [];
+      $("#spList").innerHTML = "";
+      $("#spCount").textContent = "0";
+      $("#spWordCount").textContent = "0";
+      $("#spPhraseCount").textContent = "0";
+      $("#spSegCount").textContent = "0";
+      $("#spToolbar").hidden = true;
+      $("#spEmpty").hidden = false;
+      toast("音频已更换，点「整理并切分」重新对齐");
+      return;
+    }
+    toast("音频已就绪：" + fmtTime(buf.duration));
+  } catch (e) {
+    drop.classList.remove("busy", "ok");
+    $("#spFileTag").textContent = "解码失败";
+    $("#spDropSub").textContent = "浏览器解不了这个格式，换成 MP3 / M4A / WAV 再试";
+    toast("音频解码失败，换个格式试试");
+  }
+}
+
+/* ---------- 波形 ---------- */
+function spBuildPeaks() {
+  if (!SP.buffer) return;
+  const cv = $("#spWave");
+  const buckets = Math.max(200, Math.round((cv ? cv.clientWidth : 800) * 1.2));
+  const d = SP.buffer.getChannelData(0);
+  const step = d.length / buckets;
+  const peaks = new Float32Array(buckets * 2);
+  let maxV = 0.0001;
+  for (let i = 0; i < buckets; i++) {
+    const a = Math.floor(i * step), b = Math.min(d.length, Math.floor((i + 1) * step));
+    let mn = 0, mx = 0;
+    for (let k = a; k < b; k++) { const v = d[k]; if (v < mn) mn = v; else if (v > mx) mx = v; }
+    peaks[i * 2] = mn; peaks[i * 2 + 1] = mx;
+    if (-mn > maxV) maxV = -mn;
+    if (mx > maxV) maxV = mx;
+  }
+  for (let i = 0; i < peaks.length; i++) peaks[i] /= maxV;
+  SP.peaks = peaks;
+}
+function spDrawWave() {
+  const cv = $("#spWave");
+  if (!cv || !SP.peaks || !SP.buffer) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const w = Math.max(60, cv.clientWidth), h = 78;
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  }
+  const g = cv.getContext("2d");
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, w, h);
+  const dur = SP.buffer.duration;
+  const mid = h / 2;
+
+  // 当前片段高亮
+  if (SP.curSeg) {
+    const x1 = SP.curSeg.s / dur * w, x2 = SP.curSeg.e / dur * w;
+    g.fillStyle = "rgba(185,138,76,.17)";
+    g.fillRect(x1, 0, Math.max(2, x2 - x1), h);
+  }
+
+  const n = SP.peaks.length / 2;
+  const bw = w / n;
+  for (let i = 0; i < n; i++) {
+    const mn = SP.peaks[i * 2], mx = SP.peaks[i * 2 + 1];
+    const y1 = mid - mx * mid * 0.92, y2 = mid - mn * mid * 0.92;
+    g.fillStyle = "#c9b99f";
+    g.fillRect(i * bw, y1, Math.max(1, bw - 0.35), Math.max(1, y2 - y1));
+  }
+
+  // 播放头
+  if (SP.curSeg && SP.playAt) {
+    const t = (performance.now() - SP.playAt) / 1000;
+    const at = SP.curSeg.s + Math.min(t, SP.curSeg.e - SP.curSeg.s);
+    const x = at / dur * w;
+    g.fillStyle = "rgba(152,104,44,.85)";
+    g.fillRect(Math.max(0, x - 0.7), 0, 1.6, h);
+  }
+}
+
+/* ---------- 播放 ---------- */
+function spStopSources() {
+  const list = SP.srcs.slice();
+  SP.srcs.length = 0;
+  list.forEach(s => { try { s.stop(); } catch (e) { } });
+}
+function spClearCur() {
+  SP.cur = -1; SP.curSeg = null; SP.playAt = 0;
+  if (SP.raf) { cancelAnimationFrame(SP.raf); SP.raf = 0; }
+  spPaintCur();
+  spDrawWave();
+}
+function spStop() {
+  SP.token++;
+  spStopSources();
+  spClearCur();
+}
+function spSlice(start, dur) {
+  return new Promise(resolve => {
+    if (!SP.buffer || !SP.ctx) { resolve(); return; }
+    const ctx = SP.ctx;
+    const len = Math.max(0.05, dur);
+    const src = ctx.createBufferSource();
+    src.buffer = SP.buffer;
+    const gain = ctx.createGain();
+    const t0 = ctx.currentTime + 0.015;
+    const fade = Math.min(0.01, len / 5);
+    gain.gain.setValueAtTime(0, t0);
+    gain.gain.linearRampToValueAtTime(1, t0 + fade);
+    gain.gain.setValueAtTime(1, t0 + Math.max(fade, len - fade));
+    gain.gain.linearRampToValueAtTime(0, t0 + len);
+    src.connect(gain); gain.connect(ctx.destination);
+    SP.srcs.push(src);
+    let done = false;
+    const fin = () => {
+      if (done) return;
+      done = true;
+      const i = SP.srcs.indexOf(src);
+      if (i >= 0) SP.srcs.splice(i, 1);
+      resolve();
+    };
+    src.onended = fin;
+    try { src.start(t0, Math.max(0, start), len); } catch (e) { fin(); return; }
+    setTimeout(fin, (len + 0.3) * 1000);
+  });
+}
+function spTick() {
+  if (!SP.curSeg) { SP.raf = 0; return; }
+  spDrawWave();
+  if (!SP.looping) { SP.raf = 0; return; }
+  SP.raf = requestAnimationFrame(spTick);
+}
+function spPaintCur() {
+  $$("#spList .sp-card").forEach(el => {
+    el.classList.toggle("on", +el.dataset.i === SP.cur);
+  });
+}
+function spMarkPlaying(i, seg) {
+  SP.cur = i;
+  SP.curSeg = { s: seg.s, e: seg.e };
+  SP.playAt = performance.now();
+  SP.looping = true;
+  if (!SP.raf) SP.raf = requestAnimationFrame(spTick);
+  spPaintCur();
+  const card = $('#spList .sp-card[data-i="' + i + '"]');
+  if (card) {
+    card.classList.add("played");
+    try { card.scrollIntoView({ block: "nearest", behavior: "smooth" }); } catch (e) { }
+  }
+}
+async function spPlayGroup(i, my) {
+  const g = SP.groups[i];
+  if (!g || !SP.buffer) return;
+  const seg = g.seg;
+  const dur = Math.max(0.08, seg.e - seg.s);
+  const rep = Math.max(1, Math.min(5, parseInt(SP.repeat, 10) || 1));
+  for (let k = 0; k < rep; k++) {
+    if (my !== SP.token) return;
+    spMarkPlaying(i, seg);
+    await spSlice(seg.s, dur);
+    if (my !== SP.token) return;
+    if (k < rep - 1 && SP.gap > 0) await sleep(SP.gap * 1000);
+  }
+}
+async function spPlayOne(i) {
+  if (!SP.buffer) { toast("没有上传音频，只能看词表"); return; }
+  spEnsureCtx();
+  const my = ++SP.token;
+  spStopSources();
+  await spPlayGroup(i, my);
+  if (my !== SP.token) return;
+  SP.looping = false;
+  spClearCur();
+}
+async function spPlayAll() {
+  if (!SP.buffer || !SP.groups.length) { toast("先整理出词表"); return; }
+  spEnsureCtx();
+  const my = ++SP.token;
+  spStopSources();
+  for (let i = 0; i < SP.groups.length; i++) {
+    if (my !== SP.token) return;
+    await spPlayGroup(i, my);
+    if (my !== SP.token) return;
+    if (SP.gap > 0) await sleep(SP.gap * 1000);
+  }
+  SP.looping = false;
+  spClearCur();
+}
+
+/* ---------- 渲染 ---------- */
+function spRender(res) {
+  const groups = SP.groups;
+  const nPhrase = groups.filter(g => g.kind === "phrase").length;
+  $("#spCount").textContent = groups.length;
+  $("#spWordCount").textContent = groups.length - nPhrase;
+  $("#spPhraseCount").textContent = nPhrase;
+  $("#spSegCount").textContent = groups.length;
+  $("#spEmpty").hidden = groups.length > 0;
+  $("#spToolbar").hidden = !groups.length;
+
+  const box = $("#spList");
+  box.innerHTML = groups.map((g, i) => {
+    const seg = g.seg;
+    const has = !!SP.buffer;
+    const dur = has ? (seg.e - seg.s) : 0;
+    const meta = [];
+    if (g.kind === "phrase") meta.push('<span class="tag">短语</span>');
+    if (g.occ.length > 1) meta.push("<span>" + g.occ.length + " 次</span>");
+    meta.push("<span>" + (has ? dur.toFixed(2) + "s" : "无音频") + "</span>");
+    return '<button class="sp-card' + (has ? "" : " dead") + '" data-i="' + i + '" type="button"' +
+      ' title="' + esc((g.sent || "").slice(0, 90)) + '">' +
+      '<span class="t">' + esc(g.text) + "</span>" +
+      '<span class="m">' + meta.join("") + "</span></button>";
+  }).join("");
+
+  if (SP.buffer) {
+    $("#spWaveWrap").hidden = false;
+    $("#spWaveL").textContent = "0:00";
+    $("#spWaveR").textContent = fmtTime(SP.buffer.duration);
+    spDrawWave();
+  }
+
+  // 对齐方式提示，避免用户以为切得很准
+  const hint = $("#spHint");
+  if (hint) {
+    let msg;
+    if (!SP.buffer) msg = "还没有音频：已按原文整理出词表，上传音频后重新点「整理并切分」即可点读。";
+    else if (SP.method === "srt") msg = "已按文本里的 SRT 时间轴对齐，切点最准。";
+    else msg = "识别到 " + SP.regions.length + " 段语音，切点吸附在停顿处。逐句朗读的录音最准；连读很快的素材会有偏差。";
+    // 原文和录音长度差太多时，比例分配就没意义了，先说清楚
+    if (SP.buffer && SP.method === "vad") {
+      const nWords = SP.sentences.reduce((a, s) => a + s.toks.length, 0);
+      const expect = SP.buffer.duration * 2.6;
+      if (nWords > expect * 2.2 || nWords < expect * 0.45) {
+        msg += " ⚠ 原文和录音长度差得较多（" + nWords + " 词 / " + fmtTime(SP.buffer.duration) + "），切点可能明显偏差。";
+      }
+    }
+    hint.textContent = msg;
+  }
+  if (res) toast("整理完成：" + groups.length + " 个词 / 短语");
+}
+
+/* ---------- 提示示例 ---------- */
+const SP_DEMO = "The old librarian looked after the reading room for thirty years. " +
+  "She would always point out the books that students overlooked. " +
+  "When the storm broke out last winter, she refused to give up. " +
+  "Instead, she came up with a simple plan to save the collection. " +
+  "Her quiet effort made a difference to everyone in the town.";
+
+/* ---------- 视图切换 ---------- */
+let viewName = "listen";
+function switchView(name) {
+  if (!name || name === viewName) return;
+  viewName = name;
+  $$("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.view === name));
+  $("#viewListen").hidden = name !== "listen";
+  $("#viewSplit").hidden = name !== "split";
+  if (name === "listen") {
+    spStop();
+  } else {
+    stopPlayback();
+    setTimeout(() => { if (SP.buffer) { spBuildPeaks(); spDrawWave(); } }, 40);
+  }
+  try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e) { }
+}
+
+function bindSplit() {
+  $("#tabs").onclick = e => {
+    const b = e.target.closest("button[data-view]");
+    if (b) switchView(b.dataset.view);
+  };
+  $("#spDrop").onclick = () => $("#spAudio").click();
+  $("#spAudio").onchange = e => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (f) spPickAudio(f);
+  };
+  $("#spTxtFile").onchange = e => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => { $("#spText").value = String(rd.result || ""); toast("已载入文本 " + f.name); };
+    rd.readAsText(f, "utf-8");
+  };
+  $("#spDemo").onclick = () => { $("#spText").value = SP_DEMO; toast("已填入示例原文"); };
+  $("#spPhraseMode").onchange = () => {
+    $("#spCustomWrap").hidden = $("#spPhraseMode").value === "off";
+  };
+  $("#spRepeat").onchange = e => { SP.repeat = clamp(e.target.value, 1, 5, 1); e.target.value = SP.repeat; };
+  $("#spGapInp").onchange = e => { SP.gap = clamp(e.target.value, 0, 9, 0.8); e.target.value = SP.gap; };
+
+  $("#spBuild").onclick = async () => {
+    const btn = $("#spBuild");
+    if (btn.dataset.busy === "1") return;
+    btn.dataset.busy = "1";
+    btn.disabled = true;
+    const old = btn.textContent;
+    btn.textContent = "分析中…";
+    spStop();
+    await sleep(30);
+    let res = null;
+    try { res = spAnalyze(); }
+    catch (err) { toast("分析失败：" + (err && err.message ? err.message : "未知错误")); }
+    btn.textContent = old;
+    btn.disabled = false;
+    btn.dataset.busy = "0";
+    if (!res) return;
+    spRender(res);
+  };
+
+  $("#spList").onclick = e => {
+    const card = e.target.closest(".sp-card");
+    if (!card) return;
+    spPlayOne(+card.dataset.i);
+  };
+  $("#spPlayAll").onclick = spPlayAll;
+  $("#spStopBtn").onclick = spStop;
+
+  $("#spWave").onclick = e => {
+    if (!SP.buffer) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const p = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+    const t = p * SP.buffer.duration;
+    spEnsureCtx();
+    spStopSources();
+    const my = ++SP.token;
+    SP.cur = -1;
+    spPaintCur();
+    const seg = { s: t, e: Math.min(SP.buffer.duration, t + 1.4) };
+    SP.curSeg = seg;
+    SP.playAt = performance.now();
+    SP.looping = true;
+    if (!SP.raf) SP.raf = requestAnimationFrame(spTick);
+    spSlice(seg.s, seg.e - seg.s).then(() => {
+      if (my !== SP.token) return;
+      SP.looping = false;
+      spClearCur();
+    });
+  };
+
+  $("#spImport").onclick = () => {
+    if (!SP.groups.length) { toast("还没有词表"); return; }
+    const add = SP.groups.map(g => ({
+      w: g.text,
+      d: g.sent ? "语境：" + String(g.sent).replace(/\s+/g, " ").trim() : ""
+    }));
+    words = words.concat(add);
+    saveWords();
+    started = false;
+    $("#gateStart").classList.remove("hide");
+    $("#gateEnd").classList.add("hide");
+    paintList(); resetCounter(); syncGate();
+    toast("已追加 " + add.length + " 个到听测词库");
+    switchView("listen");
+  };
+  $("#spExport").onclick = () => {
+    if (!SP.groups.length) { toast("还没有词表"); return; }
+    const txt = SP.groups.map(g => g.text + (g.sent ? "\t语境：" + String(g.sent).replace(/\s+/g, " ").trim() : "")).join("\n");
+    const blob = new Blob([txt], { type: "text/plain;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "音频词表-" + new Date().toISOString().slice(0, 10) + ".txt";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+
+  /* 拖拽 */
+  const view = $("#viewSplit");
+  ["dragenter", "dragover"].forEach(t => view.addEventListener(t, e => {
+    if (!e.dataTransfer) return;
+    e.preventDefault();
+    $("#spDrop").classList.add("over");
+  }));
+  view.addEventListener("dragleave", e => {
+    if (e.relatedTarget && view.contains(e.relatedTarget)) return;
+    $("#spDrop").classList.remove("over");
+  });
+  view.addEventListener("drop", e => {
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    $("#spDrop").classList.remove("over");
+    if (!f) return;
+    e.preventDefault();
+    if (/\.(txt|md|srt|vtt)$/i.test(f.name) || /^text\//.test(f.type)) {
+      const rd = new FileReader();
+      rd.onload = () => { $("#spText").value = String(rd.result || ""); toast("已载入文本 " + f.name); };
+      rd.readAsText(f, "utf-8");
+    } else {
+      spPickAudio(f);
+    }
+  });
+
+  /* 尺寸变化：重算波形 */
+  let rzT = null;
+  window.addEventListener("resize", () => {
+    clearTimeout(rzT);
+    rzT = setTimeout(() => {
+      if (viewName === "split" && SP.buffer) { spBuildPeaks(); spDrawWave(); }
+    }, 240);
+  });
+}
+
 function init() {
   loadStore();
   bind();
+  bindSplit();
   // 第一次点击/按键时解锁音频通道：没有这一步，自动下一题的发音会被浏览器拦截
   document.addEventListener("pointerdown", unlockAudio, { once: true, passive: true });
   document.addEventListener("keydown", unlockAudio, { once: true });
+  // 拖文件到页面任何地方都别让浏览器直接打开它
+  window.addEventListener("dragover", e => e.preventDefault());
+  window.addEventListener("drop", e => { if (!e.defaultPrevented) e.preventDefault(); });
   syncSettingsUI();
   paintList();
   resetCounter();
