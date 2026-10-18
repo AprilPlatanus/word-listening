@@ -74,6 +74,8 @@ input,select,textarea{font:inherit;color:inherit}
 .btn.ghost{background:transparent;border-color:transparent;color:var(--muted);padding:6px 8px}
 .btn.ghost:hover{background:#f1eade;color:var(--ink-2)}
 .btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.voicehint{margin-top:6px;font-size:11.5px;line-height:1.65;color:var(--bad)}
+.voicehint b{font-weight:650}
 .mini{
   margin-left:6px;border:1px solid var(--line);background:var(--panel-2);color:var(--gold-d);
   border-radius:999px;padding:1px 9px;font-size:11px;font-family:inherit;cursor:pointer;transition:.16s;
@@ -165,6 +167,7 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:#fff
 .set label{display:block;font-size:11px;color:var(--muted);letter-spacing:.03em;margin-bottom:4px;white-space:nowrap}
 .set select,.set input{padding:6px 8px;font-size:12.5px;border-radius:8px;background:#fff}
 .set.wide{grid-column:span 2}
+.set.full{grid-column:1 / -1}   /* 带长提示的区域独占一整行，别和右侧开关挤在一起 */
 .set .unit{font-size:11px;color:var(--muted);margin-left:3px}
 .switch{display:flex;align-items:center;gap:7px;padding-top:15px;font-size:12px;color:var(--ink-2);cursor:pointer;user-select:none}
 .switch input{appearance:none;width:34px;height:19px;border-radius:20px;background:#ded4c2;position:relative;transition:.2s;cursor:pointer;flex:0 0 auto;border:none;padding:0}
@@ -383,9 +386,10 @@ mutual,相互的"></textarea>
           <label>语速</label>
           <input type="number" id="inpRate" min="0.5" max="1.5" step="0.05" value="0.9">
         </div>
-        <div class="set wide" id="voiceWrap" hidden>
+        <div class="set wide full" id="voiceWrap" hidden>
           <label>系统音色</label>
           <select id="selVoice"></select>
+          <div class="voicehint" id="voiceHint" hidden></div>
         </div>
         <div class="set wide" id="customWrap" hidden>
           <label>自定义地址（含 <code>{text}</code> 占位）</label>
@@ -727,103 +731,223 @@ function playAudioEl(a, onSlow, stallMs) {
   });
 }
 
-/**
- * 系统语音。
- * 两个真实坑：
- *  1. Chrome / Edge 里 cancel() 之后立刻 speak()，这一句会被静默吞掉（不报错、不发声、onend 也不触发），
- *     以前靠 guard 定时器直接标成功，于是「读完了但没声音」。所以现在 cancel 后等一拍再 speak。
- *  2. getVoices() 首次是空数组（音色异步加载），指定 voice 会失败。所以第一遍失败后第二遍只用 lang。
- * 判定标准改成「到底有没有 onstart」：没开始发音就算失败，绝不假装成功。
- */
+/* ---------------- 音色（Chrome 与 Safari 差异的核心） ---------------- */
+
 function speechSupported() {
   return ("speechSynthesis" in window) && (typeof SpeechSynthesisUtterance === "function");
 }
 
-function speakUtterance(text, opt) {
+/**
+ * 判断是不是「联网音色」。
+ * Chrome 桌面端会提供 Google US English / Google UK English 这类音色，
+ * 它们的音频要现场向 Google 服务器要——国内网络根本连不上，
+ * 结果就是 speak() 静默失败：不报错、不发声、onstart 也不触发。
+ * Safari 只有本机音色（Samantha 等），所以同一份代码在 Safari 就正常。
+ */
+function isOnlineVoice(v) {
+  if (!v) return false;
+  if (v.localService === false) return true;
+  return /google|natural/i.test(String(v.name || ""));
+}
+
+function voiceList() {
+  if (!speechSupported()) return [];
+  try { return window.speechSynthesis.getVoices() || []; } catch (e) { return []; }
+}
+
+/**
+ * 系统语音此刻能不能真的出声。
+ * Chrome 桌面版有时只给「联网音色」（Google US English 等），一个本机英文音色都没有；
+ * 这种状态下 speak() 在国内必定没声——不是代码问题，是没有可用的离线引擎。
+ */
+function systemVoiceUsable() {
+  const all = voiceList().filter(v => /^en(-|_|$)/i.test(v.lang));
+  if (!all.length) return false;
+  return all.some(v => !isOnlineVoice(v));
+}
+
+/**
+ * 等音色加载完。
+ * Chrome 的音色是异步加载的：getVoices() 还是空数组时就 speak()，
+ * 这个 utterance 会被直接丢掉——不报错、不发声、onstart / onend 全都不触发。
+ */
+function voicesReady(timeoutMs) {
+  return new Promise(resolve => {
+    if (!speechSupported()) { resolve([]); return; }
+    const now = voiceList();
+    if (now.length) { resolve(now); return; }
+    let done = false;
+    const fin = () => { if (done) return; done = true; resolve(voiceList()); };
+    try { window.speechSynthesis.addEventListener("voiceschanged", fin, { once: true }); } catch (e) { }
+    setTimeout(fin, timeoutMs || 1500);
+  });
+}
+
+/**
+ * 音色候选队列：用户选的 → 本机英文音色 → 联网音色 → 不指定音色只给 lang。
+ * 排成队列而不是只挑一个，是因为「选错音色」在 Chrome 上等于完全没声音，
+ * 必须能自动往下换一个再试。
+ */
+function voiceCandidates() {
+  const all = voiceList().filter(v => /^en(-|_|$)/i.test(v.lang));
+  const out = [];
+  const push = v => { if (v && out.indexOf(v) < 0) out.push(v); };
+
+  if (cfg.voice) {
+    const hit = all.find(v => v.name === cfg.voice);
+    if (hit) push(hit);
+  }
+  const prefer = ["Samantha", "Ava", "Allison", "Alex", "Daniel", "Karen", "Moira", "Tessa", "Fred", "Microsoft Aria"];
+  const local = all.filter(v => !isOnlineVoice(v));
+  for (const name of prefer) {
+    const hit = local.find(v => v.name.indexOf(name) >= 0);
+    if (hit) push(hit);
+  }
+  // macOS 自带一堆「玩具音色」（Bells、Bubbles…），读单词不能用它们，排到最后
+  const toy = /^(albert|bad news|bahh|bells|boing|bubbles|cellos|deranged|good news|hysterical|jester|organ|pipe organ|superstar|trinoids|whisper|wobble|zarvox)/i;
+  local.filter(v => /en[-_]US/i.test(v.lang) && !toy.test(v.name)).forEach(push);
+  local.filter(v => !toy.test(v.name)).forEach(push);
+  local.forEach(push);
+  all.filter(v => isOnlineVoice(v)).forEach(push);
+  out.push(null);            // 兜底：不指定音色，只给 lang
+  return out;
+}
+
+function pickVoice() {
+  const list = voiceCandidates();
+  for (const c of list) if (c) return c;
+  return null;
+}
+
+/** 等语音队列真正空下来。Chrome 上队列一旦卡住，后面所有 speak() 都不会出声 */
+function waitQueueIdle(maxMs) {
+  return new Promise(resolve => {
+    const synth = window.speechSynthesis;
+    if (!synth) { resolve(); return; }
+    const t0 = Date.now();
+    const tick = () => {
+      let busy = false;
+      try { busy = !!synth.speaking || !!synth.pending; } catch (e) { }
+      if (!busy || Date.now() - t0 > (maxMs || 600)) { resolve(); return; }
+      setTimeout(tick, 60);
+    };
+    tick();
+  });
+}
+
+/** 最近一次语音尝试的诊断信息，失败时给用户看，避免只能靠猜 */
+let speechDiag = "";
+/**
+ * Chrome 有个老 bug：utterance 对象被 GC 掉后，正在排队的这句话会直接消失
+ * （表现就是"没声音"）。所以额外持有一次引用，读完再放掉。
+ */
+let liveUtterance = null;
+
+/**
+ * 念一句。
+ * 判定标准是「到底有没有开始发音」：
+ *  - onstart 到点还没来，且 synth.speaking 也是 false → 这句被吞了，算失败；
+ *  - 没收到 onstart 但引擎说自己在说话 → 当真在播，只等它结束（否则会重复朗读）；
+ *  - onstart、onend 几乎同时到（<70ms）而词又不短 → 引擎假读完，算失败。
+ */
+function speakUtterance(text, voice, watchdogMs, trustBusy) {
   return new Promise(resolve => {
     const synth = window.speechSynthesis;
     if (!synth) { resolve({ ok: false, reason: "unsupported" }); return; }
+    const trustIdle = trustBusy !== false;
     const rate = Math.min(2, Math.max(0.5, Number(cfg.rate) || 1));
     let done = false, started = false, startAt = 0, startTimer = null, endTimer = null;
 
     const u = new SpeechSynthesisUtterance(text);
     u.rate = rate; u.pitch = 1; u.volume = 1;
-    if (opt && opt.plain) {
-      u.lang = "en-US";
-    } else {
-      const v = pickVoice();
-      if (v) { u.voice = v; u.lang = v.lang || "en-US"; }
-      else { u.lang = "en-US"; }
-    }
+    if (voice) { u.voice = voice; u.lang = voice.lang || "en-US"; }
+    else { u.lang = "en-US"; }
+    liveUtterance = u;
 
     const fin = (ok, reason) => {
       if (done) return;
       done = true;
       clearTimeout(startTimer); clearTimeout(endTimer);
       u.onstart = u.onend = u.onerror = null;
-      resolve({ ok, reason: reason || "" });
+      if (liveUtterance === u) liveUtterance = null;
+      resolve({ ok, reason: reason || "", voice: voice ? voice.name : "(lang)" });
+    };
+    const armEndGuard = () => {
+      const est = (text.length * 340 + 2200) / rate;
+      clearTimeout(endTimer);
+      endTimer = setTimeout(() => fin(true), est);
     };
 
     u.onstart = () => {
       started = true;
       startAt = Date.now();
       clearTimeout(startTimer);
-      // 只用于兜底结束，不参与判定
-      const est = (text.length * 340 + 2000) / rate;
-      endTimer = setTimeout(() => fin(true), est);
+      armEndGuard();
     };
     u.onend = () => {
-      // 有些情况下语音引擎会「秒读完」：onstart、onend 几乎同时触发，实际一点声都没有。
-      // 真读一个 4 个字母以上的词不可能只用 70ms，这种情况按失败处理，交给上层重试。
       const dur = startAt ? Date.now() - startAt : 0;
       if (started && text.trim().length >= 4 && dur < 70) { fin(false, "silent"); return; }
       fin(true);
     };
-    u.onerror = (e) => fin(started, (e && e.error) || "error");
+    u.onerror = (e) => {
+      // 已经出声了才报的错（中途断掉）不算失败，否则会重读一遍
+      if (started) { fin(true); return; }
+      fin(false, (e && e.error) || "error");
+    };
 
-    // 1.2 秒还没开始发音，就认定这句被吞了
-    startTimer = setTimeout(() => { if (!started) fin(false, "nostart"); }, 1200);
+    // 起播看门狗：这段时间内必须有动静，否则判定这条音色不通
+    startTimer = setTimeout(() => {
+      if (started || done) return;
+      let busy = false;
+      try { busy = !!synth.speaking || !!synth.pending; } catch (e) { }
+      // 只有当「说这句之前队列是空的」时，synth.speaking 才可信。
+      // 队列本来就卡着的话，busy=false 才有意义，否则会把卡死误判成正在播。
+      if (busy && trustIdle) {   // 引擎说在播：不重试，否则会读两遍
+        started = true; startAt = Date.now(); armEndGuard(); return;
+      }
+      fin(false, "nostart");
+    }, watchdogMs || 2200);
 
     try {
-      if (synth.paused) synth.resume();     // 被暂停过的引擎，不 resume 会一直不出声
+      if (synth.paused) synth.resume();   // 被暂停过的引擎，不 resume 会一直不出声
       synth.speak(u);
     } catch (e) { fin(false, "throw"); }
   });
 }
 
+/**
+ * 系统语音主入口：清队列 → 等队列真空闲 → 按候选音色依次尝试。
+ * 最多试 3 个音色，且连续两次「压根没起播」就立刻放弃（引擎整体坏了，再试也白等）。
+ */
 async function webSpeak(text) {
-  if (!speechSupported()) return false;
+  if (!speechSupported()) { speechDiag = "浏览器不支持语音合成"; return false; }
   const synth = window.speechSynthesis;
-  try { synth.cancel(); } catch (e) { }
+  const voices = await voicesReady(1500);
+  const localCount = voices.filter(v => /^en/i.test(v.lang) && !isOnlineVoice(v)).length;
+
+  try { synth.cancel(); } catch (e) { }               // 清掉可能卡住的旧句子
   try { if (synth.paused) synth.resume(); } catch (e) { }
-  await sleep(90);                       // 给 cancel 一点时间收尾
-  let r = await speakUtterance(text);
-  if (!r.ok) {
-    // 第二次机会：不指定 voice，只用 lang（音色没加载好时，这样更容易成功）
+  await waitQueueIdle(700);
+  let busyBefore = false;
+  try { busyBefore = !!synth.speaking || !!synth.pending; } catch (e) { }
+  await sleep(40);
+
+  const cands = voiceCandidates();
+  let nostart = 0, tried = [];
+  for (let i = 0; i < cands.length && i < 3; i++) {
+    const v = cands[i];
+    tried.push(v ? v.name : "默认");
+    const r = await speakUtterance(text, v, i === 0 ? 2200 : 2800, !busyBefore);
+    if (r.ok) { speechDiag = ""; return true; }
+    if (r.reason === "nostart") nostart++;
+    if (nostart >= 2) break;                           // 两次都没起播：引擎坏了
     try { synth.cancel(); } catch (e) { }
     try { if (synth.paused) synth.resume(); } catch (e) { }
-    await sleep(260);
-    r = await speakUtterance(text, { plain: true });
+    await waitQueueIdle(400);
+    await sleep(60);
   }
-  return r.ok;
-}
-
-function pickVoice() {
-  if (!("speechSynthesis" in window)) return null;
-  const all = window.speechSynthesis.getVoices() || [];
-  if (cfg.voice) {
-    const hit = all.find(v => v.name === cfg.voice);
-    if (hit) return hit;
-  }
-  const en = all.filter(v => /^en(-|_|$)/i.test(v.lang));
-  if (!en.length) return null;
-  const prefer = ["Samantha", "Ava", "Allison", "Google US English", "Microsoft Aria", "Alex", "Daniel", "Karen"];
-  for (const name of prefer) {
-    const hit = en.find(v => v.name.indexOf(name) >= 0);
-    if (hit) return hit;
-  }
-  const us = en.find(v => /en[-_]US/i.test(v.lang));
-  return us || en[0];
+  speechDiag = "音色 " + voices.length + " 个（本机英文 " + localCount + " 个），试过 " + tried.join(" / ");
+  return false;
 }
 
 /* ---------- 无声诊断 ---------- */
@@ -831,7 +955,13 @@ const SILENT_WAV = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAI
 let audioUnlocked = false;
 let lastNoSoundNotice = 0;
 
-/** 在用户第一次点击/按键时解锁音频，否则自动下一题的发音会被浏览器拦掉 */
+/**
+ * 在用户第一次点击/按键时解锁音频，否则自动下一题的发音会被浏览器拦掉。
+ * 注意：这里只解锁 <audio>，**不要**再放静音语音。
+ * 一条空的 utterance（哪怕只是一个空格）在 Chrome 上有概率永远不触发 onend，
+ * 把语音队列卡死，之后所有 speak() 都排在它后面 → 整轮彻底没声音。
+ * Safari 不会卡，这就是「Chrome 没声、换 Safari 就好」的另一半原因。
+ */
 function unlockAudio() {
   if (audioUnlocked) return;
   audioUnlocked = true;
@@ -842,14 +972,9 @@ function unlockAudio() {
     if (p && typeof p.catch === "function") p.catch(() => { });
     setTimeout(() => { try { a.pause(); } catch (e) { } }, 60);
   } catch (e) { }
-  // iOS Safari：首次 speak 必须在手势里，先放一条静音语音把通道打开
-  try {
-    if (speechSupported()) {
-      const u = new SpeechSynthesisUtterance(" ");
-      u.volume = 0; u.lang = "en-US";
-      window.speechSynthesis.speak(u);
-    }
-  } catch (e) { }
+  // 只做「预热」：把音色列表拉起来，别往队列里塞任何句子
+  try { if (speechSupported()) window.speechSynthesis.getVoices(); } catch (e) { }
+  try { if (speechSupported() && window.speechSynthesis.paused) window.speechSynthesis.resume(); } catch (e) { }
 }
 
 function showSoundBar(title, desc) {
@@ -866,8 +991,14 @@ function hideSoundBar() {
 
 /** 两种发音都没出声时，给出可执行的下一步，而不是静默跳过 */
 function noteSilent(via) {
-  if (via === "web") {
-    showSoundBar("系统语音没有发出声音", "这台设备可能没装英文语音包。换成「有道美音」，或检查系统音量 / 蓝牙耳机。");
+  if (via === "nofallback") {
+    showSoundBar("在线发音失败，这台浏览器没有可用的系统语音",
+      "Chrome 当前只提供「需联网」的音色（Google …），国内连不上就等于没声，所以无法兜底。" +
+      "三种解法：① 用 Safari / Edge；② 在系统设置里安装英文语音包后重启 Chrome；③ 联网正常的网络环境下用「有道美音」。");
+  } else if (via === "web") {
+    showSoundBar("系统语音没有发出声音",
+      "Chrome 的「Google US English」等联网音色在国内会完全没声；把「发音引擎」换成「有道美音」，或在「系统音色」里选 Samantha / Alex 这类本机音色。" +
+      (speechDiag ? "（" + speechDiag + "）" : ""));
   } else if (via === "remote") {
     showSoundBar("在线发音没有声音", "音频加载失败或网络拦截。点「恢复播放」重试，或用「测试发音」确认。");
   } else {
@@ -969,9 +1100,32 @@ async function speakOnceRaw(text) {
       }
     }
 
+    // 关键：Chrome 可能只提供「联网音色」，这时系统语音一定没声（国内连不上 Google），
+    // 再切过去只是白等 2 秒 × 3 次，还让用户以为程序坏了。直接如实报告。
+    if (!r.denied && !systemVoiceUsable()) {
+      voiceFallback = false;
+      remoteCooldownUntil = 0;        // 没有可用的兜底，就得继续试在线
+      return afterSystemFailed("nofallback");
+    }
+
     const ok = await webSpeak(text);
     if (ok) { sysFailStreak = 0; return { ok: true, via: "web" }; }
     return afterSystemFailed(r.denied ? "remote" : "web");
+  }
+
+  // 用户手动选了「浏览器语音」，但这台浏览器只有联网音色：先用在线音频兜一下，
+  // 总比一点声都没有强（只提示一次，不打扰）。
+  if (!systemVoiceUsable()) {
+    const rr = await tryRemote(text);
+    if (rr.ok) {
+      sysFailStreak = 0;
+      if (Date.now() - lastFallbackToast > 20000) {
+        lastFallbackToast = Date.now();
+        toast("当前浏览器没有本机英文音色，已改用在线发音");
+      }
+      return { ok: true, via: "remote" };
+    }
+    return afterSystemFailed("nofallback");
   }
 
   const ok = await webSpeak(text);
@@ -1000,8 +1154,11 @@ async function testSound() {
   if (r.ok) {
     toast(r.via === "remote" ? "在线发音正常 ✓" : "系统语音正常 ✓");
   } else {
+    const voices = voiceList().filter(v => /^en(-|_|$)/i.test(v.lang));
     showSoundBar("两种发音都没有声音",
-      "请检查：系统音量 / 静音键 / 是否连着蓝牙耳机 / 浏览器标签是否被静音。仍不行就换个浏览器试试。");
+      "依次排查：① 系统音量 / 静音键 / 蓝牙耳机；② 系统音色不要选「Google …」（那类音色要联网，国内会没声），选 Samantha / Alex；" +
+      "③ 仍不行就把引擎换成「有道美音」。" +
+      "（系统音色数：" + voices.length + (speechDiag ? "；" + speechDiag : "") + "）");
   }
 }
 
@@ -1290,19 +1447,46 @@ function fillVoiceSelect() {
   const sel = $("#selVoice");
   if (!("speechSynthesis" in window)) {
     sel.innerHTML = '<option value="">当前浏览器不支持系统语音</option>';
+    paintVoiceHint(false);
     return;
   }
   const all = (window.speechSynthesis.getVoices() || []).filter(v => /^en(-|_|$)/i.test(v.lang));
   if (!all.length) {
     sel.innerHTML = '<option value="">未检测到英文音色</option>';
+    paintVoiceHint(true);
     return;
   }
-  sel.innerHTML = all.map(v =>
-    '<option value="' + esc(v.name) + '">' + esc(v.name) + " · " + esc(v.lang) + "</option>"
-  ).join("");
+  // 本机音色排在前面：Chrome 的 Google 音色要连 Google 服务器，国内直接没声
+  const sorted = all.slice().sort((a, b) => (isOnlineVoice(a) ? 1 : 0) - (isOnlineVoice(b) ? 1 : 0));
+  sel.innerHTML = sorted.map(v => {
+    const tag = isOnlineVoice(v) ? " · 需联网" : "";
+    return '<option value="' + esc(v.name) + '">' + esc(v.name) + " · " + esc(v.lang) + tag + "</option>";
+  }).join("");
   const best = pickVoice();
-  sel.value = best ? best.name : all[0].name;
-  if (best && !cfg.voice) { cfg.voice = best.name; saveCfg(); }
+  sel.value = best ? best.name : sorted[0].name;
+  // 只把「本机音色」记为默认选择：联网音色存下来只会在国内反复失败
+  if (best && !cfg.voice && !isOnlineVoice(best)) { cfg.voice = best.name; saveCfg(); }
+  paintVoiceHint(false);
+}
+
+/**
+ * 系统音色区的风险提示。
+ * Chrome 桌面版可能一个本机英文音色都没有（只给 Google 联网音色），
+ * 这种状态下系统语音在国内必定没声，必须在使用前就告诉用户。
+ */
+function paintVoiceHint(noVoices) {
+  const hint = $("#voiceHint");
+  if (!hint) return;
+  if (noVoices) {
+    hint.hidden = false;
+    hint.innerHTML = "这个浏览器没有提供英文音色，<b>系统语音不可用</b>；请把「发音引擎」换成<b>有道美音</b>。";
+    return;
+  }
+  const usable = systemVoiceUsable();
+  hint.hidden = usable;
+  if (usable) return;
+  hint.innerHTML = "当前只有<b>需联网</b>的音色（Google …），国内连不上就等于没声。" +
+    "请把「发音引擎」换成<b>有道美音</b>，或在系统设置里安装英文语音包后重启浏览器。";
 }
 
 /* ---------------- 交互绑定 ---------------- */
