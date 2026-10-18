@@ -1,0 +1,14 @@
+# macOS
+.DS_Store
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+
+# 本工具目录（非项目内容）
+.workbuddy/
+
+# 临时文件
+*.log
+node_modules/

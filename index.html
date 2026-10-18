@@ -1,0 +1,1297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>单词听测 · 听音回忆</title>
+<meta name="description" content="只给声音、不给拼写：听完发音后有 2 秒空白让你回忆，然后自动揭晓单词与释义。单文件、零依赖、可离线使用的单词听测网页。">
+<meta name="author" content="AprilPlatanus">
+<meta name="theme-color" content="#f6f2ea">
+<meta property="og:type" content="website">
+<meta property="og:title" content="单词听测 · 听音回忆">
+<meta property="og:description" content="听发音 → 回忆释义 → 自动揭晓。支持重复遍数、发音间隔、延迟揭晓、只练错词，手机也能用。">
+<meta property="og:image" content="https://aprilplatanus.github.io/word-listening/assets/preview.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔊</text></svg>">
+<style>
+/* ============ 基础 ============ */
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#f6f2ea;
+  --panel:#fffdf9;
+  --panel-2:#faf6ee;
+  --ink:#1e1b16;
+  --ink-2:#4a443b;
+  --muted:#948b7d;
+  --line:#e8e0d2;
+  --line-2:#f0e9dd;
+  --gold:#b98a4c;
+  --gold-d:#98682c;
+  --gold-l:#f4e8d5;
+  --ok:#2f7d5d;
+  --warn:#c08a3e;
+  --bad:#b4543f;
+  --r:18px;
+  --shadow:0 1px 2px rgba(70,50,20,.05),0 14px 34px -18px rgba(70,50,20,.28);
+}
+html,body{height:100%}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  font-size:14px;line-height:1.6;
+  background-image:
+    radial-gradient(760px 420px at 12% -8%, rgba(185,138,76,.13), transparent 62%),
+    radial-gradient(620px 380px at 96% 4%, rgba(185,138,76,.09), transparent 60%);
+  background-attachment:fixed;
+}
+button{font:inherit;color:inherit;cursor:pointer;border:none;background:none}
+input,select,textarea{font:inherit;color:inherit}
+::selection{background:var(--gold-l)}
+
+/* ============ 布局 ============ */
+.app{max-width:1240px;margin:0 auto;padding:22px 22px 44px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{
+  width:42px;height:42px;border-radius:13px;flex:0 0 auto;
+  background:linear-gradient(150deg,#c9a06a,#9a6c30);
+  display:grid;place-items:center;color:#fff;
+  box-shadow:0 6px 16px -8px rgba(154,108,48,.9),inset 0 1px 0 rgba(255,255,255,.35);
+}
+.brand h1{margin:0;font-size:19px;letter-spacing:.02em;font-weight:650}
+.brand p{margin:1px 0 0;font-size:12px;color:var(--muted);letter-spacing:.03em}
+.top-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:8px 13px;border-radius:10px;font-size:13px;font-weight:500;
+  background:var(--panel);border:1px solid var(--line);color:var(--ink-2);
+  transition:.18s;white-space:nowrap;
+}
+.btn:hover{border-color:#d9cbb4;background:#fff;transform:translateY(-1px)}
+.btn:active{transform:none}
+.btn.gold{background:linear-gradient(160deg,#c9a06a,#a4762f);color:#fff;border-color:transparent;box-shadow:0 6px 16px -10px rgba(154,108,48,.95)}
+.btn.gold:hover{filter:brightness(1.04)}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--muted);padding:6px 8px}
+.btn.ghost:hover{background:#f1eade;color:var(--ink-2)}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+
+.layout{display:grid;grid-template-columns:344px minmax(0,1fr);gap:18px;align-items:start}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+
+/* ============ 左侧词库 ============ */
+.lib{padding:16px 16px 10px;position:sticky;top:18px}
+.panel-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.panel-hd h2{margin:0;font-size:13.5px;font-weight:650;letter-spacing:.06em}
+.badge{font-size:11.5px;color:var(--gold-d);background:var(--gold-l);border-radius:20px;padding:2px 9px;font-weight:600}
+.field{margin-bottom:10px}
+.field label{display:block;font-size:11.5px;color:var(--muted);letter-spacing:.05em;margin-bottom:5px}
+textarea,input[type=text],input[type=number],select{
+  width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;
+  padding:9px 11px;font-size:13px;outline:none;transition:.18s;
+}
+textarea{resize:vertical;min-height:104px;line-height:1.75;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;letter-spacing:.01em}
+textarea:focus,input:focus,select:focus{border-color:var(--gold);background:#fff;box-shadow:0 0 0 3px rgba(185,138,76,.13)}
+.hint{font-size:11.5px;color:var(--muted);line-height:1.65;margin:6px 0 0}
+.hint code{background:#f1eade;padding:1px 5px;border-radius:5px;font-size:11px;color:var(--gold-d)}
+.row-btns{display:flex;gap:7px;margin-top:9px}
+.row-btns .btn{flex:1;justify-content:center;padding:7px 8px;font-size:12.5px}
+
+.wordlist{
+  margin:12px -6px 0;padding:0 6px;list-style:none;
+  max-height:min(46vh,420px);overflow-y:auto;border-top:1px solid var(--line-2);padding-top:8px;
+}
+.wordlist::-webkit-scrollbar{width:6px}
+.wordlist::-webkit-scrollbar-thumb{background:#e2d8c6;border-radius:6px}
+.wrow{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:9px;cursor:pointer;transition:.15s}
+.wrow:hover{background:var(--panel-2)}
+.wrow.on{background:var(--gold-l)}
+.wrow .idx{font-size:10.5px;color:#bdb2a0;font-variant-numeric:tabular-nums;width:18px;flex:0 0 auto}
+.wtxt{min-width:0;flex:1;display:flex;flex-direction:column;line-height:1.35}
+.wtxt b{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wtxt span{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wacts{display:flex;gap:2px;opacity:0;transition:.15s}
+.wrow:hover .wacts{opacity:1}
+.wacts button{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;color:var(--muted);font-size:13px}
+.wacts button:hover{background:#efe6d6;color:var(--gold-d)}
+.empty{text-align:center;color:var(--muted);font-size:12.5px;padding:22px 6px}
+
+/* ============ 右侧主区 ============ */
+.stage{padding:18px;position:relative}
+.stage-top{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+.counter{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.counter b{color:var(--ink);font-size:15px;font-weight:650}
+.chips{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
+.chip{font-size:11.5px;padding:3px 9px;border-radius:20px;background:var(--panel-2);border:1px solid var(--line);color:var(--muted)}
+.chip b{font-variant-numeric:tabular-nums}
+.chip.ok b{color:var(--ok)}
+.chip.warn b{color:var(--warn)}
+.chip.bad b{color:var(--bad)}
+.bar{height:3px;border-radius:3px;background:var(--line-2);overflow:hidden;margin-bottom:2px}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#d9b98a,#a4762f);border-radius:3px;transition:width .45s cubic-bezier(.3,.8,.3,1)}
+
+/* 设置条 */
+.settings{
+  display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;
+  margin:14px 0 4px;padding:11px 12px;background:var(--panel-2);border:1px solid var(--line-2);border-radius:14px;
+}
+.set{min-width:0}
+.set label{display:block;font-size:11px;color:var(--muted);letter-spacing:.03em;margin-bottom:4px;white-space:nowrap}
+.set select,.set input{padding:6px 8px;font-size:12.5px;border-radius:8px;background:#fff}
+.set.wide{grid-column:span 2}
+.set .unit{font-size:11px;color:var(--muted);margin-left:3px}
+.switch{display:flex;align-items:center;gap:7px;padding-top:15px;font-size:12px;color:var(--ink-2);cursor:pointer;user-select:none}
+.switch input{appearance:none;width:34px;height:19px;border-radius:20px;background:#ded4c2;position:relative;transition:.2s;cursor:pointer;flex:0 0 auto;border:none;padding:0}
+.switch input:checked{background:var(--gold)}
+.switch input::after{content:"";position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 2px rgba(0,0,0,.18)}
+.switch input:checked::after{left:17px}
+
+/* 舞台 */
+.playarea{
+  min-height:330px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:26px 16px 20px;position:relative;
+}
+.dial{position:relative;width:112px;height:112px;display:grid;place-items:center;margin-bottom:14px}
+.dial::before{
+  content:"";position:absolute;inset:0;border-radius:50%;
+  background:radial-gradient(circle at 50% 42%,rgba(201,160,106,.22),transparent 68%);
+  opacity:0;transition:.3s;
+}
+.dial.playing::before{opacity:1;animation:pulse 1.5s ease-out infinite}
+@keyframes pulse{0%{transform:scale(.9);opacity:.85}100%{transform:scale(1.5);opacity:0}}
+.playbtn{
+  width:96px;height:96px;border-radius:50%;display:grid;place-items:center;
+  background:linear-gradient(155deg,#cfa773,#9a6c30);color:#fff;
+  border:1px solid rgba(255,255,255,.25);
+  box-shadow:0 12px 28px -14px rgba(140,96,38,.95),inset 0 1px 1px rgba(255,255,255,.4);
+  transition:transform .18s,box-shadow .18s,filter .18s;
+}
+.playbtn:hover{transform:scale(1.035);filter:brightness(1.04)}
+.playbtn:active{transform:scale(.97)}
+.playbtn svg{filter:drop-shadow(0 1px 2px rgba(90,60,20,.35))}
+.dial.playing .playbtn{animation:breathe 1.6s ease-in-out infinite}
+@keyframes breathe{0%,100%{box-shadow:0 12px 28px -14px rgba(140,96,38,.95),inset 0 1px 1px rgba(255,255,255,.4)}50%{box-shadow:0 14px 34px -12px rgba(140,96,38,.75),inset 0 1px 1px rgba(255,255,255,.4)}}
+
+.status{font-size:12.5px;color:var(--muted);letter-spacing:.04em;min-height:20px;text-align:center}
+.status b{color:var(--gold-d);font-weight:600}
+.dots{display:flex;gap:6px;justify-content:center;margin-top:10px;height:8px}
+.dots i{width:7px;height:7px;border-radius:50%;background:#e2d7c4;transition:.22s}
+.dots i.on{background:var(--gold);transform:scale(1.18)}
+.dots i.done{background:#ddc7a4}
+
+/* 释义区 */
+.reveal{position:relative;min-height:118px;width:100%;max-width:560px;margin-top:10px}
+.veil,.answer{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;transition:opacity .4s ease,transform .4s cubic-bezier(.2,.75,.3,1)}
+.veil{gap:8px;color:var(--muted)}
+.veil .eye{font-size:20px;opacity:.5}
+.veil p{margin:0;font-size:12.5px;letter-spacing:.04em}
+.veil b{color:var(--gold-d);font-variant-numeric:tabular-nums;font-size:14px}
+.veil.hide{opacity:0;transform:scale(.97);pointer-events:none}
+.answer{opacity:0;transform:translateY(10px);pointer-events:none}
+.answer.show{opacity:1;transform:none;pointer-events:auto}
+.answer .word{
+  font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Songti SC",serif;
+  font-size:clamp(32px,4.6vw,46px);line-height:1.12;letter-spacing:.005em;font-weight:600;color:var(--ink);
+}
+.answer .def{
+  margin-top:8px;font-size:16px;color:var(--ink-2);line-height:1.55;max-width:520px;
+}
+.answer .def em{font-style:normal;color:var(--muted);font-size:13px}
+
+/* 操作条 */
+.actions{display:flex;gap:8px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+.mark{display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+.mark button{
+  padding:7px 15px;border-radius:10px;font-size:13px;font-weight:500;border:1px solid var(--line);
+  background:#fff;transition:.16s;
+}
+.mark button:hover{transform:translateY(-1px)}
+.mark button[data-m=know]:hover,.mark button[data-m=know].on{background:#eaf5ef;border-color:#b9dcc9;color:var(--ok)}
+.mark button[data-m=vague]:hover,.mark button[data-m=vague].on{background:#fbf2e2;border-color:#e8d3ac;color:var(--warn)}
+.mark button[data-m=forgot]:hover,.mark button[data-m=forgot].on{background:#fbeeeb;border-color:#e8c6bd;color:var(--bad)}
+.keyhint{text-align:center;font-size:11.5px;color:#b3a894;margin-top:14px;letter-spacing:.02em}
+.keyhint kbd{font-family:inherit;background:#f1eade;border-radius:5px;padding:1px 5px;font-size:10.5px;color:#8d7a5c}
+
+/* 起始 / 结束 遮罩 */
+.gate{
+  position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  background:#fffdf9;backdrop-filter:blur(4px);border-radius:14px;z-index:5;
+  text-align:center;padding:24px;
+}
+.gate.hide{display:none}
+.gate h3{margin:0;font-size:17px;font-weight:650}
+.gate p{margin:0;font-size:12.5px;color:var(--muted);max-width:380px;line-height:1.7}
+.gate .btn{margin-top:6px}
+.steps{display:flex;gap:8px;margin:4px 0 2px;flex-wrap:wrap;justify-content:center}
+.steps span{
+  font-size:11.5px;color:var(--gold-d);background:var(--gold-l);border:1px solid #ecdcbf;
+  border-radius:20px;padding:4px 11px;letter-spacing:.03em;
+}
+.finish-stats{display:flex;gap:22px;margin:6px 0 2px}
+.finish-stats div{text-align:center}
+.finish-stats b{display:block;font-size:24px;font-variant-numeric:tabular-nums;line-height:1.2}
+.finish-stats span{font-size:11.5px;color:var(--muted)}
+.finish-stats .k b{color:var(--ok)}
+.finish-stats .v b{color:var(--warn)}
+.finish-stats .f b{color:var(--bad)}
+
+/* 注释 / toast */
+.note{margin-top:14px;font-size:12px;color:var(--muted)}
+.note summary{cursor:pointer;color:var(--gold-d);font-size:12px;list-style:none;display:inline-flex;align-items:center;gap:5px}
+.note summary::-webkit-details-marker{display:none}
+.note summary::before{content:"›";transition:.2s;font-size:15px;line-height:1}
+.note[open] summary::before{transform:rotate(90deg)}
+.note p{margin:8px 0 0;line-height:1.8;background:var(--panel-2);border:1px solid var(--line-2);border-radius:10px;padding:10px 12px}
+.note a{color:var(--gold-d)}
+
+#toast{
+  position:fixed;left:50%;bottom:26px;transform:translate(-50%,16px);
+  background:#26221c;color:#fdf8ef;font-size:12.5px;padding:8px 15px;border-radius:22px;
+  box-shadow:0 10px 26px -12px rgba(0,0,0,.6);opacity:0;pointer-events:none;transition:.28s;z-index:99;max-width:88vw;
+}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+
+@media (max-width:900px){
+  .layout{grid-template-columns:1fr}
+  .lib{position:static;order:2}
+  .stage{order:1}
+  .settings{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .set.wide{grid-column:span 3}
+  .app{padding:16px 14px 34px}
+  .playarea{min-height:290px;padding:20px 8px 12px}
+}
+@media (max-width:520px){
+  .settings{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .set.wide{grid-column:span 2}
+  .chips{width:100%;margin-left:0}
+  .answer .def{font-size:15px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+      </div>
+      <div>
+        <h1>单词听测</h1>
+        <p>听发音 → 回忆释义 → 自动揭晓</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button class="btn" id="btnSample">示例词库</button>
+      <button class="btn" id="btnExport">导出词库</button>
+      <label class="btn">导入文件<input type="file" id="fileImport" accept=".json,.txt,.csv" hidden></label>
+      <button class="btn ghost" id="btnNatural">NaturalReader ↗</button>
+      <a class="btn ghost" href="https://github.com/AprilPlatanus/word-listening" target="_blank" rel="noopener" title="开源仓库 · 欢迎 Star">GitHub ↗</a>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <!-- ============ 左：词库 ============ -->
+    <aside class="panel lib">
+      <div class="panel-hd">
+        <h2>词 库</h2>
+        <span class="badge" id="libCount">0 个</span>
+      </div>
+
+      <div class="field">
+        <label>批量录入 · 每行一个「单词 + 释义」</label>
+        <textarea id="bulk" spellcheck="false" placeholder="abandon 放弃，抛弃
+vanish 消失
+look after 照顾
+consider|考虑，认为
+mutual,相互的"></textarea>
+        <p class="hint">分隔符自动识别：空格 / Tab / <code>|</code> / 逗号 / 冒号 / 短横线。含中文时按中文起点自动切开，所以 <code>look after 照顾</code> 也能正确拆分。</p>
+        <div class="row-btns">
+          <button class="btn gold" id="btnImport">导入替换</button>
+          <button class="btn" id="btnAppend">追加</button>
+          <button class="btn" id="btnFill">回填现词库</button>
+        </div>
+      </div>
+
+      <ul class="wordlist" id="wordlist"></ul>
+    </aside>
+
+    <!-- ============ 右：听测台 ============ -->
+    <main class="panel stage" id="stage">
+
+      <div class="stage-top">
+        <div class="counter">第 <b id="curNo">0</b> / <span id="curTotal">0</span> 个</div>
+        <div class="chips">
+          <span class="chip ok">记得 <b id="nKnow">0</b></span>
+          <span class="chip warn">模糊 <b id="nVague">0</b></span>
+          <span class="chip bad">忘了 <b id="nForgot">0</b></span>
+        </div>
+      </div>
+      <div class="bar"><i id="progFill"></i></div>
+
+      <!-- 设置 -->
+      <div class="settings">
+        <div class="set wide">
+          <label>发音引擎</label>
+          <select id="selEngine">
+            <option value="youdao-us">有道美音 · 近 NaturalReader 质感</option>
+            <option value="youdao-uk">有道英音</option>
+            <option value="web">浏览器语音（系统音色）</option>
+            <option value="custom">自定义接口</option>
+          </select>
+        </div>
+        <div class="set">
+          <label>重复遍数</label>
+          <input type="number" id="inpRepeat" min="1" max="9" step="1" value="2">
+        </div>
+        <div class="set">
+          <label>间隔（秒）</label>
+          <input type="number" id="inpGap" min="0" max="9" step="0.5" value="1">
+        </div>
+        <div class="set">
+          <label>揭晓延迟（秒）</label>
+          <input type="number" id="inpDelay" min="0" max="20" step="0.5" value="2">
+        </div>
+        <div class="set">
+          <label>语速</label>
+          <input type="number" id="inpRate" min="0.5" max="1.5" step="0.05" value="0.9">
+        </div>
+        <div class="set wide" id="voiceWrap" hidden>
+          <label>系统音色</label>
+          <select id="selVoice"></select>
+        </div>
+        <div class="set wide" id="customWrap" hidden>
+          <label>自定义地址（含 <code>{text}</code> 占位）</label>
+          <input type="text" id="inpCustom" spellcheck="false" placeholder="https://your-tts.com/say?text={text}">
+        </div>
+        <label class="switch" title="开启后每轮顺序随机"><input type="checkbox" id="chkShuffle">打乱顺序</label>
+        <label class="switch" title="揭晓后停留 4 秒自动跳下一题"><input type="checkbox" id="chkAutoNext">自动下一题</label>
+      </div>
+
+      <!-- 播放区 -->
+      <div class="playarea" id="playarea">
+        <div class="dial" id="dial">
+          <button class="playbtn" id="btnPlay" aria-label="播放">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+          </button>
+        </div>
+        <div class="status" id="status">点击开始，听发音后回忆释义</div>
+        <div class="dots" id="dots"></div>
+
+        <div class="reveal">
+          <div class="veil" id="veil">
+            <div class="eye">👁</div>
+            <p>发音结束后 <b id="delayTxt">2</b> 秒自动显示释义</p>
+          </div>
+          <div class="answer" id="answer">
+            <div class="word" id="ansWord"></div>
+            <div class="def" id="ansDef"></div>
+          </div>
+        </div>
+
+        <div class="mark" id="markRow">
+          <button data-m="know">记得</button>
+          <button data-m="vague">模糊</button>
+          <button data-m="forgot">忘了</button>
+        </div>
+
+        <div class="actions">
+          <button class="btn" id="btnPrev">← 上一题</button>
+          <button class="btn" id="btnReplay">重播</button>
+          <button class="btn" id="btnReveal">直接看释义</button>
+          <button class="btn gold" id="btnNext">下一题 →</button>
+        </div>
+
+        <div class="keyhint">
+          <kbd>空格</kbd> 播放 · <kbd>Enter</kbd> 看释义 · <kbd>→</kbd> 下一题 · <kbd>←</kbd> 上一题
+        </div>
+
+        <!-- 起始遮罩 -->
+        <div class="gate" id="gateStart">
+          <h3>准备好了吗</h3>
+          <div class="steps"><span>① 听发音</span><span>② 心里回忆</span><span>③ 自动揭晓</span></div>
+          <p id="gateDesc">先把单词粘进左侧词库，或直接用示例词库试一下。</p>
+          <button class="btn gold" id="btnStart">开始听测</button>
+        </div>
+
+        <!-- 结束遮罩 -->
+        <div class="gate hide" id="gateEnd">
+          <h3>本轮完成</h3>
+          <div class="finish-stats">
+            <div class="k"><b id="fKnow">0</b><span>记得</span></div>
+            <div class="v"><b id="fVague">0</b><span>模糊</span></div>
+            <div class="f"><b id="fForgot">0</b><span>忘了</span></div>
+          </div>
+          <p id="endHint"></p>
+          <div class="actions">
+            <button class="btn" id="btnRetryWrong">只练「模糊 + 忘了」</button>
+            <button class="btn gold" id="btnRestart">再来一轮</button>
+          </div>
+        </div>
+      </div>
+
+      <details class="note">
+        <summary>关于「NaturalReader 发音」</summary>
+        <p>
+          NaturalReader 官网（naturalreaders.com/online）不允许被其他页面嵌入，也没有公开的发音接口，因此无法在网页里直接调取它的音频。
+          这里改用两条同样“网页在线”的通道：<b>有道美音 / 英音接口</b>（默认，真人录音质感、国内直连稳定）和 <b>浏览器系统语音</b>（离线可用、可挑音色）。
+          若坚持用 NaturalReader，点右上角 <b>NaturalReader ↗</b>，会把当前单词复制到剪贴板并打开官网，粘贴即可朗读。
+          有自建 TTS 的话，把「发音引擎」切到“自定义接口”，填一条含 <code>{text}</code> 的地址即可。
+          <br>容错规则：在线发音 8 秒还没出声，这个词会自动改用系统语音，且已加载的音频会被立刻停掉，不会出现「在线读一遍、系统再读一遍」；若连续两个词都失败，本轮剩余单词直接走系统语音，不再逐个等待。
+        </p>
+      </details>
+
+    </main>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+"use strict";
+/* =========================================================
+   单词听测 · 单文件应用
+   ========================================================= */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.prototype.slice.call(r.querySelectorAll(s));
+
+const LS = { words: "wdt.words.v1", cfg: "wdt.cfg.v1" };
+const DEFAULTS = {
+  engine: "youdao-us", voice: "", rate: 0.9, repeat: 2, gap: 1,
+  delay: 2, shuffle: false, autoNext: false, customUrl: ""
+};
+
+let cfg = Object.assign({}, DEFAULTS);
+let words = [];
+let queue = [];          // words 索引顺序
+let pos = 0;
+let marks = {};          // wordsIndex -> know|vague|forgot
+let started = false, finished = false;
+let revealed = false, playing = false;
+let token = 0;           // 播放序列令牌，用来中断
+let cdTimer = null, nextTimer = null;
+const audioCache = new Map();
+
+const CJK = /[\u3400-\u4dbf\u4e00-\u9fa5]/;
+
+/* ---------------- 存储 ---------------- */
+function loadStore() {
+  try {
+    const w = JSON.parse(localStorage.getItem(LS.words) || "[]");
+    if (Array.isArray(w)) words = w.filter(x => x && x.w).map(x => ({ w: String(x.w), d: String(x.d || "") }));
+  } catch (e) { }
+  try {
+    const c = JSON.parse(localStorage.getItem(LS.cfg) || "{}");
+    if (c && typeof c === "object") cfg = Object.assign({}, DEFAULTS, c);
+  } catch (e) { }
+}
+function saveWords() { try { localStorage.setItem(LS.words, JSON.stringify(words)); } catch (e) { } }
+function saveCfg() { try { localStorage.setItem(LS.cfg, JSON.stringify(cfg)); } catch (e) { } }
+
+/* ---------------- 解析 ---------------- */
+function parseLine(line) {
+  let s = String(line).replace(/\u3000/g, " ").replace(/^\s*[\d]+[.)、]\s*/, "").trim();
+  if (!s) return null;
+
+  // 1) Tab / |
+  let parts = s.split(/\t+|\s*\|\s*/).filter(Boolean);
+  if (parts.length >= 2) {
+    const w = parts[0].trim(), d = parts.slice(1).join(" | ").trim();
+    if (w && d) return { w, d };
+  }
+  // 2) 含中文：从第一个中文字符处切开（最稳，兼容词组）
+  if (CJK.test(s)) {
+    const m = s.match(/^([^\u3400-\u4dbf\u4e00-\u9fa5]+?)\s*[,，;；:：]?\s*([\u3400-\u4dbf\u4e00-\u9fa5][\s\S]*)$/);
+    if (m) {
+      const w = m[1].replace(/[\s,，;；:：\-–—|]+$/, "").trim();
+      const d = m[2].trim();
+      if (w && d) return { w, d };
+    }
+  }
+  // 3) 短横线
+  const dm = s.match(/^(.+?)\s+[-–—]{1,2}\s+(.+)$/);
+  if (dm && !/[-–—]/.test(dm[1])) return { w: dm[1].trim(), d: dm[2].trim() };
+  // 4) 逗号 / 冒号
+  const cm = s.match(/^(.+?)\s*[,，;；:：]\s*(.+)$/);
+  if (cm) return { w: cm[1].trim(), d: cm[2].trim() };
+  // 5) 首个空格
+  const sm = s.match(/^(\S+)\s+([\s\S]+)$/);
+  if (sm) return { w: sm[1].trim(), d: sm[2].trim() };
+  return { w: s, d: "" };
+}
+function parseBulk(text) {
+  return text.split(/\r?\n/).map(parseLine).filter(Boolean);
+}
+
+/* ---------------- 发音 ---------------- */
+function youdaoUrl(text) {
+  const type = cfg.engine === "youdao-uk" ? 1 : 2;
+  return "https://dict.youdao.com/dictvoice?audio=" + encodeURIComponent(text) + "&type=" + type;
+}
+function engineUrl(text) {
+  if (cfg.engine === "custom" && cfg.customUrl) {
+    return cfg.customUrl.indexOf("{text}") >= 0
+      ? cfg.customUrl.replace("{text}", encodeURIComponent(text))
+      : cfg.customUrl + encodeURIComponent(text);
+  }
+  return youdaoUrl(text);
+}
+/* 记录短时间内失败过的音频地址，避免同一个词反复空等 8 秒 */
+const failedUrls = new Map();
+/* 连续失败熔断：网络整体不通时，别让每个词都白等 8 秒 */
+let voiceFallback = false, remoteFailStreak = 0;
+function resetRemoteStreak() { voiceFallback = false; remoteFailStreak = 0; failedUrls.clear(); }
+function urlIsDead(url) {
+  const t = failedUrls.get(url);
+  if (!t) return false;
+  if (Date.now() - t > 180000) { failedUrls.delete(url); return false; }
+  return true;
+}
+function markUrlDead(url) {
+  failedUrls.set(url, Date.now());
+  if (failedUrls.size > 300) failedUrls.delete(failedUrls.keys().next().value);
+}
+
+function killAudio(a) {
+  if (!a) return;
+  try { a.pause(); } catch (e) { }
+  try { a.currentTime = 0; } catch (e) { }
+}
+
+function getAudio(url) {
+  if (audioCache.has(url)) return audioCache.get(url);
+  const a = new Audio();
+  a.preload = "auto";
+  a.src = url;
+  audioCache.set(url, a);
+  if (audioCache.size > 240) { // 简单清理
+    const firstKey = audioCache.keys().next().value;
+    killAudio(audioCache.get(firstKey));
+    audioCache.delete(firstKey);
+  }
+  return a;
+}
+function isRemoteEngine() {
+  if (voiceFallback) return false;   // 已熔断，本轮直接用系统语音
+  return cfg.engine === "youdao-us" || cfg.engine === "youdao-uk" || cfg.engine === "custom";
+}
+
+function preload(text) {
+  if (!text || !isRemoteEngine()) return;
+  const url = engineUrl(text);
+  if (urlIsDead(url)) return;
+  const a = getAudio(url);
+  try { a.load(); } catch (e) { }
+}
+function preloadNext() {
+  if (!started || !queue.length) return;
+  const nxt = queue[Math.min(pos + 1, queue.length - 1)];
+  if (words[nxt]) preload(words[nxt].w);
+}
+
+/**
+ * 播放一段在线音频。
+ * 明确职责：只有「压根没出声」才算失败；一旦开始播放，就只等它自然结束，
+ * 绝不再降级到系统语音——这是之前「在线读一遍 + 系统再读一遍」的根源。
+ */
+function playAudioEl(a, onSlow) {
+  return new Promise((resolve, reject) => {
+    let settled = false, started = false;
+    let stallTimer = null, tailTimer = null, slowTimer = null, hardTimer = null;
+
+    const clearAll = () => {
+      clearTimeout(stallTimer); clearTimeout(tailTimer);
+      clearTimeout(slowTimer); clearTimeout(hardTimer);
+      a.onended = null; a.onerror = null; a.onplaying = null;
+    };
+    const settle = (err) => {
+      if (settled) return;
+      settled = true;
+      clearAll();
+      if (err) {
+        // 关键：判定失败立刻掐掉这个元素，
+        // 否则它缓冲完成后会「迟到」地自己响一遍，和系统语音叠成两遍
+        killAudio(a);
+        reject(err);
+      } else {
+        resolve();
+      }
+    };
+    const markStarted = () => {
+      if (started) return;
+      started = true;
+      clearTimeout(stallTimer);
+      clearTimeout(slowTimer);
+      const rate = Math.max(0.5, Number(cfg.rate) || 1);
+      const dur = (isFinite(a.duration) && a.duration > 0) ? a.duration : 0;
+      clearTimeout(tailTimer);
+      // 播放中的兜底只用来结束等待，不做降级（否则会重复朗读）
+      tailTimer = setTimeout(() => settle(), dur ? dur * 1000 / rate + 4000 : 25000);
+      if (playing) paintPlayState();
+    };
+
+    a.onended = () => settle();
+    a.onerror = () => settle(new Error("audio-error"));
+    a.onplaying = markStarted;
+
+    // 加载偏慢时给个提示，避免用户以为卡住了
+    slowTimer = setTimeout(() => {
+      if (!started && !settled && typeof onSlow === "function") onSlow();
+    }, 1300);
+
+    // 起播放门狗：8 秒还没出声，才判定这条链路不通
+    stallTimer = setTimeout(() => {
+      if (!a.paused && a.currentTime > 0) { markStarted(); return; }
+      settle(new Error("stall"));
+    }, 8000);
+
+    // 绝对上限，保证 Promise 一定会结束，不留悬空 await
+    hardTimer = setTimeout(() => settle(), 30000);
+
+    if (a.error) { try { a.load(); } catch (e) { } }
+    try { a.pause(); } catch (e) { }
+    try { a.currentTime = 0; } catch (e) { }
+    a.playbackRate = Number(cfg.rate) || 1;
+    let p;
+    try { p = a.play(); } catch (e) { settle(e); return; }
+    if (p && typeof p.catch === "function") p.catch(err => settle(err));
+  });
+}
+
+function webSpeak(text) {
+  return new Promise(resolve => {
+    if (!("speechSynthesis" in window)) { resolve(false); return; }
+    let done = false;
+    const fin = () => { if (done) return; done = true; resolve(true); };
+    try { window.speechSynthesis.cancel(); } catch (e) { }
+    const u = new SpeechSynthesisUtterance(text);
+    const v = pickVoice();
+    if (v) { u.voice = v; u.lang = v.lang || "en-US"; } else { u.lang = "en-US"; }
+    u.rate = Math.min(2, Math.max(0.5, Number(cfg.rate) || 1));
+    u.pitch = 1;
+    u.onend = fin; u.onerror = fin;
+    const guard = Math.max(1500, text.length * 240 / (Number(cfg.rate) || 1)) + 2600;
+    setTimeout(fin, guard);
+    try { window.speechSynthesis.speak(u); } catch (e) { fin(); }
+  });
+}
+
+function pickVoice() {
+  if (!("speechSynthesis" in window)) return null;
+  const all = window.speechSynthesis.getVoices() || [];
+  if (cfg.voice) {
+    const hit = all.find(v => v.name === cfg.voice);
+    if (hit) return hit;
+  }
+  const en = all.filter(v => /^en(-|_|$)/i.test(v.lang));
+  if (!en.length) return null;
+  const prefer = ["Samantha", "Ava", "Allison", "Google US English", "Microsoft Aria", "Alex", "Daniel", "Karen"];
+  for (const name of prefer) {
+    const hit = en.find(v => v.name.indexOf(name) >= 0);
+    if (hit) return hit;
+  }
+  const us = en.find(v => /en[-_]US/i.test(v.lang));
+  return us || en[0];
+}
+
+/** 只念一遍（在线音频优先，失败才降级到系统语音，且保证不重叠） */
+let lastFallbackToast = 0;
+async function speakOnce(text) {
+  if (isRemoteEngine()) {
+    const url = engineUrl(text);
+    // 这个词刚才已经确认不通，直接走系统语音，不再白等一轮
+    if (urlIsDead(url)) { await webSpeak(text); return; }
+    try {
+      await playAudioEl(getAudio(url), () => {
+        const st = $("#status");
+        if (playing && st) st.innerHTML = "在线发音加载中 <b>…</b>";
+      });
+      failedUrls.delete(url);
+      remoteFailStreak = 0;
+      return;
+    } catch (e) {
+      markUrlDead(url);
+      remoteFailStreak++;
+      if (remoteFailStreak >= 2 && !voiceFallback) {
+        voiceFallback = true;
+        toast("在线发音连续没响应，本轮剩余单词改用系统语音");
+      } else if (Date.now() - lastFallbackToast > 15000) {
+        lastFallbackToast = Date.now();
+        toast("在线发音没响应，这个词改用系统语音");
+      }
+      const ok = await webSpeak(text);
+      if (!ok) toast("当前浏览器不支持语音播放，建议用 Chrome / Edge / Safari");
+      return;
+    }
+  }
+  await webSpeak(text);
+}
+
+/* ---------------- 播放序列 ---------------- */
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function current() { return queue.length ? words[queue[pos]] : null; }
+function currentWordIndex() { return queue.length ? queue[pos] : -1; }
+
+function clearCountdown() {
+  if (cdTimer) { clearInterval(cdTimer); cdTimer = null; }
+}
+function clearNextTimer() {
+  if (nextTimer) { clearTimeout(nextTimer); nextTimer = null; }
+}
+function stopAllAudio() {
+  try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch (e) { }
+  audioCache.forEach(a => { try { a.pause(); a.currentTime = 0; } catch (e) { } });
+}
+
+function stopPlayback() {
+  token++;
+  playing = false;
+  clearCountdown();
+  stopAllAudio();
+  paintPlayState();
+}
+
+async function playSequence(autoReveal) {
+  const item = current();
+  if (!item) return;
+  const my = ++token;
+  // 打断上一轮残留的音频/语音，避免手动重播时两遍叠在一起
+  stopAllAudio();
+  clearCountdown();
+  clearNextTimer();
+  playing = true;
+  paintPlayState();
+
+  const total = Math.max(1, Math.min(9, parseInt(cfg.repeat, 10) || 1));
+  const gap = Math.max(0, Number(cfg.gap) || 0);
+  preload(item.w);
+
+  for (let i = 0; i < total; i++) {
+    if (my !== token) return;
+    paintDots(i, total);
+    await speakOnce(item.w);
+    if (my !== token) return;
+    if (i < total - 1 && gap > 0) {
+      await sleep(gap * 1000);
+      if (my !== token) return;
+    }
+  }
+  paintDots(-1, total);
+  playing = false;
+  paintPlayState();
+  if (autoReveal !== false && !revealed) startCountdown();
+}
+
+function startCountdown() {
+  const total = Math.max(0, Number(cfg.delay) || 0);
+  clearCountdown();
+  if (total <= 0) { doReveal(); return; }
+  let left = total;
+  paintCountdown(left);
+  cdTimer = setInterval(() => {
+    left = Math.round((left - 0.1) * 10) / 10;
+    if (left <= 0.05) {
+      clearCountdown();
+      doReveal();
+      return;
+    }
+    paintCountdown(left);
+  }, 100);
+}
+
+function paintCountdown(sec) {
+  const st = $("#status");
+  st.innerHTML = "发音结束，<b>" + (Math.round(sec * 10) / 10).toFixed(1) + "s</b> 后显示释义";
+  const d = $("#delayTxt");
+  if (d) d.textContent = (Math.round(sec * 10) / 10).toFixed(1);
+}
+
+function doReveal() {
+  if (revealed || !queue.length) return;
+  revealed = true;
+  clearCountdown();
+  paintStage();
+  preloadNext();
+  if (cfg.autoNext) {
+    clearNextTimer();
+    nextTimer = setTimeout(() => { if (!$("#gateEnd").classList.contains("hide")) return; goNext(); }, 4000);
+  }
+}
+
+/* ---------------- 会话 ---------------- */
+function shuffleArr(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function startSession(onlyWrong) {
+  if (!words.length) { toast("词库是空的，先添加单词"); return; }
+  let pool = words.map((_, i) => i);
+  if (onlyWrong) {
+    pool = pool.filter(i => marks[i] === "vague" || marks[i] === "forgot");
+    if (!pool.length) { toast("没有标记为「模糊 / 忘了」的单词"); return; }
+  }
+  queue = cfg.shuffle ? shuffleArr(pool) : pool;
+  pos = 0; started = true; finished = false; revealed = false;
+  marks = {};
+  resetRemoteStreak();
+  $("#gateStart").classList.add("hide");
+  $("#gateEnd").classList.add("hide");
+  // 预取前 3 个词的音频，避免第一题等待
+  if (isRemoteEngine()) {
+    for (let i = 0; i < Math.min(3, queue.length); i++) preload(words[queue[i]].w);
+  }
+  enterItem();
+}
+
+function enterItem(autoPlay) {
+  revealed = false;
+  clearCountdown();
+  clearNextTimer();
+  stopPlayback();
+  paintStage();
+  preload(current() ? current().w : "");
+  preloadNext();
+  if (autoPlay !== false) playSequence(true);
+}
+
+function goNext() {
+  clearNextTimer();
+  if (pos < queue.length - 1) {
+    pos++;
+    enterItem();
+  } else {
+    finishSession();
+  }
+}
+function goPrev() {
+  clearNextTimer();
+  pos = Math.max(0, pos - 1);
+  enterItem();
+}
+
+function finishSession() {
+  started = false; finished = true; playing = false;
+  stopPlayback();
+  const c = { know: 0, vague: 0, forgot: 0 };
+  Object.keys(marks).forEach(k => { if (c[marks[k]] != null) c[marks[k]]++; });
+  $("#fKnow").textContent = c.know;
+  $("#fVague").textContent = c.vague;
+  $("#fForgot").textContent = c.forgot;
+  const total = queue.length;
+  const unmarked = total - c.know - c.vague - c.forgot;
+  let txt = "共 " + total + " 个单词";
+  if (unmarked > 0) txt += "，其中 " + unmarked + " 个未标记";
+  if (c.forgot + c.vague > 0) txt += "。建议只练「模糊 + 忘了」。";
+  else if (c.know === total) txt += "，全部记得，很稳。";
+  else txt += "。";
+  $("#endHint").textContent = txt;
+  $("#btnRetryWrong").disabled = (c.forgot + c.vague === 0);
+  $("#gateEnd").classList.remove("hide");
+}
+
+/* ---------------- 渲染 ---------------- */
+function paintList() {
+  const ul = $("#wordlist");
+  $("#libCount").textContent = words.length + " 个";
+  if (!words.length) {
+    ul.innerHTML = '<li class="empty">还没有单词<br>上方粘贴后点「导入替换」</li>';
+    return;
+  }
+  const curIdx = started ? currentWordIndex() : -1;
+  const keepTop = ul.scrollTop;
+  ul.innerHTML = words.map((it, i) =>
+    '<li class="wrow' + (i === curIdx ? " on" : "") + '" data-i="' + i + '">' +
+    '<span class="idx">' + String(i + 1).padStart(2, "0") + "</span>" +
+    '<div class="wtxt"><b>' + esc(it.w) + "</b><span>" + esc(it.d || "—") + "</span></div>" +
+    '<div class="wacts"><button data-act="play" title="单独发音">▶</button>' +
+    '<button data-act="del" title="删除">×</button></div></li>'
+  ).join("");
+  ul.scrollTop = keepTop;
+  // 当前词滚进可视区（长词库时很关键）
+  const on = ul.querySelector(".wrow.on");
+  if (on && curIdx >= 0) {
+    const ur = ul.getBoundingClientRect(), or = on.getBoundingClientRect();
+    if (or.top < ur.top + 4 || or.bottom > ur.bottom - 4) {
+      ul.scrollTop = keepTop + (or.top - ur.top) - ul.clientHeight / 2 + on.offsetHeight / 2;
+    }
+  }
+}
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+}
+
+function paintStage() {
+  const total = queue.length;
+  $("#curNo").textContent = total ? pos + 1 : 0;
+  $("#curTotal").textContent = total || words.length;
+  $("#progFill").style.width = total ? ((pos + (revealed ? 1 : 0.35)) / total * 100).toFixed(1) + "%" : "0%";
+
+  const ans = $("#answer"), veil = $("#veil");
+  if (revealed && total) {
+    const it = current();
+    $("#ansWord").textContent = it.w;
+    $("#ansDef").textContent = it.d || "（未填写释义）";
+    ans.classList.add("show");
+    veil.classList.add("hide");
+    const m = marks[currentWordIndex()];
+    $$("#markRow button").forEach(b => b.classList.toggle("on", b.dataset.m === m));
+  } else {
+    ans.classList.remove("show");
+    veil.classList.remove("hide");
+    $("#ansWord").textContent = "";
+    $("#ansDef").textContent = "";
+    $("#delayTxt").textContent = String(Number(cfg.delay) || 0);
+    $$("#markRow button").forEach(b => b.classList.remove("on"));
+  }
+  paintDots(-1, Math.max(1, Math.min(9, parseInt(cfg.repeat, 10) || 1)));
+  paintStats();
+  paintList();
+  if (!playing && !cdTimer) {
+    $("#status").textContent = total
+      ? (revealed ? "释义已显示 · 可重播或继续" : "点圆形按钮再听一遍")
+      : "点击开始，听发音后回忆释义";
+  }
+}
+
+function paintDots(active, total) {
+  const box = $("#dots");
+  if (box.children.length !== total) {
+    box.innerHTML = Array.from({ length: total }, () => "<i></i>").join("");
+  }
+  Array.from(box.children).forEach((el, i) => {
+    el.className = active < 0 ? "" : (i < active ? "done" : (i === active ? "on" : ""));
+  });
+}
+
+function paintPlayState() {
+  $("#dial").classList.toggle("playing", playing);
+  if (playing) {
+    const total = Math.max(1, parseInt(cfg.repeat, 10) || 1);
+    $("#status").innerHTML = "正在播放 <b>" + Math.max(1, $$("#dots i.on, #dots i.done").length) + " / " + total + "</b> 遍";
+  } else if (!cdTimer && !revealed && queue.length) {
+    $("#status").textContent = "点击圆形按钮再听一遍";
+  }
+}
+
+function paintStats() {
+  const c = { know: 0, vague: 0, forgot: 0 };
+  Object.keys(marks).forEach(k => { if (c[marks[k]] != null) c[marks[k]]++; });
+  $("#nKnow").textContent = c.know;
+  $("#nVague").textContent = c.vague;
+  $("#nForgot").textContent = c.forgot;
+}
+
+/* ---------------- 设置同步 ---------------- */
+function syncSettingsUI() {
+  $("#selEngine").value = cfg.engine;
+  $("#inpRepeat").value = cfg.repeat;
+  $("#inpGap").value = cfg.gap;
+  $("#inpDelay").value = cfg.delay;
+  $("#inpRate").value = cfg.rate;
+  $("#chkShuffle").checked = !!cfg.shuffle;
+  $("#chkAutoNext").checked = !!cfg.autoNext;
+  $("#voiceWrap").hidden = cfg.engine !== "web";
+  $("#customWrap").hidden = cfg.engine !== "custom";
+  $("#inpCustom").value = cfg.customUrl || "";
+  fillVoiceSelect();
+  $("#delayTxt").textContent = String(Number(cfg.delay) || 0);
+}
+
+function fillVoiceSelect() {
+  const sel = $("#selVoice");
+  if (!("speechSynthesis" in window)) {
+    sel.innerHTML = '<option value="">当前浏览器不支持系统语音</option>';
+    return;
+  }
+  const all = (window.speechSynthesis.getVoices() || []).filter(v => /^en(-|_|$)/i.test(v.lang));
+  if (!all.length) {
+    sel.innerHTML = '<option value="">未检测到英文音色</option>';
+    return;
+  }
+  sel.innerHTML = all.map(v =>
+    '<option value="' + esc(v.name) + '">' + esc(v.name) + " · " + esc(v.lang) + "</option>"
+  ).join("");
+  const best = pickVoice();
+  sel.value = best ? best.name : all[0].name;
+  if (best && !cfg.voice) { cfg.voice = best.name; saveCfg(); }
+}
+
+/* ---------------- 交互绑定 ---------------- */
+const SAMPLE = [
+  { w: "abandon", d: "放弃；抛弃；遗弃" },
+  { w: "vanish", d: "消失；突然不见" },
+  { w: "reluctant", d: "不情愿的；勉强的" },
+  { w: "significant", d: "重要的；显著的" },
+  { w: "approach", d: "方法；接近；着手处理" },
+  { w: "look after", d: "照顾；照料" },
+  { w: "turn down", d: "拒绝；调低（音量）" },
+  { w: "consequence", d: "后果；结果" },
+  { w: "accumulate", d: "积累；积聚" },
+  { w: "deliberately", d: "故意地；深思熟虑地" }
+];
+
+function loadSample() {
+  words = SAMPLE.map(x => ({ w: x.w, d: x.d }));
+  saveWords();
+  started = false;
+  $("#gateStart").classList.remove("hide");
+  $("#gateEnd").classList.add("hide");
+  paintList(); resetCounter();
+  syncGate();
+}
+
+/** 按词库状态刷新起始面板文案 */
+function syncGate() {
+  const btn = $("#btnStart"), desc = $("#gateDesc");
+  if (!btn) return;
+  if (!words.length) {
+    btn.textContent = "用示例词库开始";
+    desc.textContent = "词库还是空的。可以直接用示例词库试一轮，或把单词粘到左边点「导入替换」。";
+  } else {
+    btn.textContent = "开始听测";
+    desc.textContent = "词库里有 " + words.length + " 个单词，点开始听测。";
+  }
+}
+
+let toastTimer = null;
+function toast(msg) {
+  const t = $("#toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+}
+
+function bind() {
+  /* 词库 */
+  $("#btnImport").onclick = () => {
+    const list = parseBulk($("#bulk").value);
+    if (!list.length) { toast("没有解析到内容"); return; }
+    words = list;
+    saveWords();
+    started = false;
+    $("#gateStart").classList.remove("hide");
+    $("#gateEnd").classList.add("hide");
+    $("#bulk").value = "";
+    paintList(); paintStage(); resetCounter(); syncGate();
+    toast("已导入 " + list.length + " 个单词");
+  };
+  $("#btnAppend").onclick = () => {
+    const list = parseBulk($("#bulk").value);
+    if (!list.length) { toast("没有解析到内容"); return; }
+    words = words.concat(list);
+    saveWords();
+    $("#bulk").value = "";
+    paintList(); resetCounter(); syncGate();
+    toast("已追加 " + list.length + " 个，共 " + words.length + " 个");
+  };
+  $("#btnFill").onclick = () => {
+    $("#bulk").value = words.map(it => it.w + " " + it.d).join("\n");
+    $("#bulk").focus();
+    toast("已回填，改完点「导入替换」");
+  };
+  $("#btnSample").onclick = () => {
+    if (words.length && !confirm("会覆盖当前词库，确定用示例词库？")) return;
+    loadSample();
+    toast("示例词库已就绪，点「开始听测」");
+  };
+  $("#btnExport").onclick = () => {
+    if (!words.length) { toast("词库是空的"); return; }
+    const blob = new Blob([JSON.stringify(words, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "词库-" + new Date().toISOString().slice(0, 10) + ".json";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+  $("#fileImport").onchange = e => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+      let list = [];
+      try {
+        const j = JSON.parse(rd.result);
+        if (Array.isArray(j)) list = j.map(x => typeof x === "string" ? parseLine(x) : { w: x.w || x.word || "", d: x.d || x.def || x.meaning || "" }).filter(x => x && x.w);
+      } catch (err) {
+        list = parseBulk(rd.result);
+      }
+      if (!list.length) { toast("文件里没有可用内容"); return; }
+      words = words.concat(list);
+      saveWords();
+      paintList(); resetCounter(); syncGate();
+      toast("已导入 " + list.length + " 个");
+    };
+    rd.readAsText(f, "utf-8");
+    e.target.value = "";
+  };
+  $("#btnNatural").onclick = async () => {
+    const it = current();
+    const text = it ? it.w : "";
+    try { if (text) await navigator.clipboard.writeText(text); } catch (e) { }
+    window.open("https://www.naturalreaders.com/online/", "_blank", "noopener");
+    if (text) toast("已复制「" + text + "」，在 NaturalReader 里粘贴朗读");
+  };
+
+  /* 列表委托 */
+  $("#wordlist").onclick = e => {
+    const row = e.target.closest(".wrow");
+    if (!row) return;
+    const i = parseInt(row.dataset.i, 10);
+    const act = e.target.dataset.act;
+    if (act === "del") {
+      words.splice(i, 1);
+      saveWords();
+      started = false;
+      $("#gateStart").classList.remove("hide");
+      $("#gateEnd").classList.add("hide");
+      paintList(); paintStage(); resetCounter(); syncGate();
+      return;
+    }
+    if (act === "play") {
+      stopPlayback();
+      speakOnce(words[i].w);
+      return;
+    }
+    // 跳到该题
+    if (!words.length) return;
+    queue = words.map((_, k) => k);
+    pos = i;
+    started = true;
+    revealed = false;
+    $("#gateStart").classList.add("hide");
+    $("#gateEnd").classList.add("hide");
+    enterItem();
+  };
+
+  /* 设置项 */
+  $("#selEngine").onchange = e => {
+    cfg.engine = e.target.value; saveCfg();
+    resetRemoteStreak();          // 换引擎后重新给在线发音一次机会
+    syncSettingsUI();
+    if (cfg.engine === "web" && !("speechSynthesis" in window)) toast("当前浏览器不支持系统语音");
+    toast("发音引擎：" + e.target.selectedOptions[0].textContent);
+  };
+  $("#selVoice").onchange = e => { cfg.voice = e.target.value; saveCfg(); };
+  $("#inpRepeat").onchange = e => {
+    cfg.repeat = clamp(e.target.value, 1, 9, 1); saveCfg(); syncSettingsUI(); paintStage();
+  };
+  $("#inpGap").onchange = e => {
+    cfg.gap = clamp(e.target.value, 0, 9, 1); saveCfg(); syncSettingsUI();
+  };
+  $("#inpDelay").onchange = e => {
+    cfg.delay = clamp(e.target.value, 0, 20, 0.5); saveCfg(); syncSettingsUI(); paintStage();
+  };
+  $("#inpRate").onchange = e => {
+    cfg.rate = clamp(e.target.value, 0.5, 1.5, 0.9); saveCfg(); syncSettingsUI();
+  };
+  $("#inpCustom").onchange = e => { cfg.customUrl = e.target.value.trim(); saveCfg(); };
+  $("#chkShuffle").onchange = e => { cfg.shuffle = e.target.checked; saveCfg(); };
+  $("#chkAutoNext").onchange = e => { cfg.autoNext = e.target.checked; saveCfg(); };
+
+  /* 播放控制 */
+  $("#btnPlay").onclick = () => {
+    if (!started) { startSession(false); return; }
+    playSequence(true);
+  };
+  $("#btnReplay").onclick = () => {
+    if (!started) { startSession(false); return; }
+    playSequence(true);
+  };
+  $("#btnReveal").onclick = () => {
+    if (!queue.length) { toast("先开始听测"); return; }
+    stopPlayback();
+    doReveal();
+  };
+  $("#btnNext").onclick = goNext;
+  $("#btnPrev").onclick = goPrev;
+
+  $("#btnStart").onclick = () => {
+    if (!words.length) loadSample();
+    startSession(false);
+  };
+  $("#btnRestart").onclick = () => startSession(false);
+  $("#btnRetryWrong").onclick = () => startSession(true);
+
+  /* 自评 */
+  $("#markRow").onclick = e => {
+    const b = e.target.closest("button[data-m]");
+    if (!b) return;
+    const idx = currentWordIndex();
+    if (idx < 0) return;
+    marks[idx] = b.dataset.m;
+    paintStage();
+    clearNextTimer();
+    setTimeout(() => goNext(), 320);
+  };
+
+  /* 键盘 */
+  document.addEventListener("keydown", e => {
+    const tag = (e.target.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "textarea" || tag === "select") return;
+    const gateOpen = !$("#gateStart").classList.contains("hide");
+    if (e.code === "Space") {
+      e.preventDefault();
+      if (gateOpen) startSession(false);
+      else if (queue.length) playSequence(true);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (queue.length) { stopPlayback(); doReveal(); }
+      else if (gateOpen) startSession(false);
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault();
+      if (queue.length) goNext();
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      if (queue.length) goPrev();
+    }
+  });
+
+  /* 音色异步加载 */
+  if ("speechSynthesis" in window) {
+    window.speechSynthesis.onvoiceschanged = () => {
+      fillVoiceSelect();
+      if (cfg.engine === "web") syncSettingsUI();
+    };
+    window.speechSynthesis.getVoices();
+  }
+}
+
+function clamp(v, min, max, fallback) {
+  const n = Number(v);
+  if (!isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+function resetCounter() {
+  $("#curNo").textContent = started ? pos + 1 : 0;
+  $("#curTotal").textContent = started ? queue.length : words.length;
+  $("#progFill").style.width = "0%";
+  $("#dots").innerHTML = "";
+  $("#status").textContent = "点击开始，听发音后回忆释义";
+  $("#answer").classList.remove("show");
+  $("#veil").classList.remove("hide");
+  $("#ansWord").textContent = "";
+  $("#ansDef").textContent = "";
+  paintStats();
+}
+
+/* ---------------- 启动 ---------------- */
+function init() {
+  loadStore();
+  bind();
+  syncSettingsUI();
+  paintList();
+  resetCounter();
+  syncGate();
+  paintStage();
+}
+
+window.addEventListener("load", init);
+</script>
+</body>
+</html>
