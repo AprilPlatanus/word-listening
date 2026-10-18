@@ -580,7 +580,23 @@ function engineUrl(text) {
 const failedUrls = new Map();
 /* 连续失败熔断：网络整体不通时，别让每个词都白等 8 秒 */
 let voiceFallback = false, remoteFailStreak = 0;
-function resetRemoteStreak() { voiceFallback = false; remoteFailStreak = 0; failedUrls.clear(); }
+/* 系统语音的失败计数：系统语音若是坏的，不能让它把整轮都吞掉 */
+let sysFailStreak = 0, noSoundCount = 0, audioDead = false;
+/* 网络整体不通时的冷却期：这段时间内直接走系统语音，不再逐个词去等超时 */
+let remoteCooldownUntil = 0;
+function resetRemoteStreak() {
+  voiceFallback = false; remoteFailStreak = 0;
+  sysFailStreak = 0; noSoundCount = 0; audioDead = false;
+  remoteCooldownUntil = 0;
+  failedUrls.clear();
+}
+/** 用户主动点播放时，给所有发音通道一次新的机会 */
+function retryAudioIfDead() {
+  if (!audioDead) return;
+  resetRemoteStreak();
+  hideSoundBar();
+  toast("重新尝试发音…");
+}
 function urlIsDead(url) {
   const t = failedUrls.get(url);
   if (!t) return false;
@@ -602,6 +618,8 @@ function getAudio(url) {
   if (audioCache.has(url)) return audioCache.get(url);
   const a = new Audio();
   a.preload = "auto";
+  // 备用发音源（百度）带 Referer 会返回空文件，这里统一不带 Referer
+  try { a.referrerPolicy = "no-referrer"; } catch (e) { }
   a.src = url;
   audioCache.set(url, a);
   if (audioCache.size > 240) { // 简单清理
@@ -612,7 +630,8 @@ function getAudio(url) {
   return a;
 }
 function isRemoteEngine() {
-  if (voiceFallback) return false;   // 已熔断，本轮直接用系统语音
+  if (voiceFallback) return false;                        // 已熔断，本轮直接用系统语音
+  if (Date.now() < remoteCooldownUntil) return false;     // 网络冷却期内别再去等超时
   return cfg.engine === "youdao-us" || cfg.engine === "youdao-uk" || cfg.engine === "custom";
 }
 
@@ -640,7 +659,7 @@ function preloadNext() {
  * 否则会出现「点了没反应、一直卡着」。
  */
 let playSeq = 0;
-function playAudioEl(a, onSlow) {
+function playAudioEl(a, onSlow, stallMs) {
   return new Promise((resolve, reject) => {
     const myId = ++playSeq;
     a.__playId = myId;
@@ -687,12 +706,12 @@ function playAudioEl(a, onSlow) {
       if (!started && !settled && typeof onSlow === "function") onSlow();
     }, 1300);
 
-    // 起播放门狗：8 秒还没出声，才判定这条链路不通
+    // 起播放门狗：迟迟不出声，才判定这条链路不通（主源 6s，备用源 5s）
     stallTimer = setTimeout(() => {
       if (!isMine()) { settle(); return; }
       if (!a.paused && a.currentTime > 0) { markStarted(); return; }
       settle(new Error("stall"));
-    }, 8000);
+    }, Math.max(1500, Number(stallMs) || 8000));
 
     // 绝对上限，保证 Promise 一定会结束，不留悬空 await
     hardTimer = setTimeout(() => settle(), 30000);
@@ -725,7 +744,7 @@ function speakUtterance(text, opt) {
     const synth = window.speechSynthesis;
     if (!synth) { resolve({ ok: false, reason: "unsupported" }); return; }
     const rate = Math.min(2, Math.max(0.5, Number(cfg.rate) || 1));
-    let done = false, started = false, startTimer = null, endTimer = null;
+    let done = false, started = false, startAt = 0, startTimer = null, endTimer = null;
 
     const u = new SpeechSynthesisUtterance(text);
     u.rate = rate; u.pitch = 1; u.volume = 1;
@@ -747,18 +766,28 @@ function speakUtterance(text, opt) {
 
     u.onstart = () => {
       started = true;
+      startAt = Date.now();
       clearTimeout(startTimer);
       // 只用于兜底结束，不参与判定
       const est = (text.length * 340 + 2000) / rate;
       endTimer = setTimeout(() => fin(true), est);
     };
-    u.onend = () => fin(true);
+    u.onend = () => {
+      // 有些情况下语音引擎会「秒读完」：onstart、onend 几乎同时触发，实际一点声都没有。
+      // 真读一个 4 个字母以上的词不可能只用 70ms，这种情况按失败处理，交给上层重试。
+      const dur = startAt ? Date.now() - startAt : 0;
+      if (started && text.trim().length >= 4 && dur < 70) { fin(false, "silent"); return; }
+      fin(true);
+    };
     u.onerror = (e) => fin(started, (e && e.error) || "error");
 
     // 1.2 秒还没开始发音，就认定这句被吞了
     startTimer = setTimeout(() => { if (!started) fin(false, "nostart"); }, 1200);
 
-    try { synth.speak(u); } catch (e) { fin(false, "throw"); }
+    try {
+      if (synth.paused) synth.resume();     // 被暂停过的引擎，不 resume 会一直不出声
+      synth.speak(u);
+    } catch (e) { fin(false, "throw"); }
   });
 }
 
@@ -766,11 +795,13 @@ async function webSpeak(text) {
   if (!speechSupported()) return false;
   const synth = window.speechSynthesis;
   try { synth.cancel(); } catch (e) { }
+  try { if (synth.paused) synth.resume(); } catch (e) { }
   await sleep(90);                       // 给 cancel 一点时间收尾
   let r = await speakUtterance(text);
   if (!r.ok) {
-    // 第二次机会：不指定 voice，只用 lang（首次加载音色后这样更容易成功）
+    // 第二次机会：不指定 voice，只用 lang（音色没加载好时，这样更容易成功）
     try { synth.cancel(); } catch (e) { }
+    try { if (synth.paused) synth.resume(); } catch (e) { }
     await sleep(260);
     r = await speakUtterance(text, { plain: true });
   }
@@ -849,50 +880,103 @@ function noteSilent(via) {
   }
 }
 
-/** 只念一遍。返回 { ok, via }：via 会告诉调用方声音是从哪条链路出来的 */
-let lastFallbackToast = 0;
-async function speakOnceRaw(text) {
-  if (isRemoteEngine()) {
-    const url = engineUrl(text);
-    // 这个词刚才已经确认不通，直接走系统语音，不再白等一轮
-    if (urlIsDead(url)) {
-      const ok = await webSpeak(text);
-      if (!ok) noteSilent("web");
-      return { ok, via: ok ? "web" : "none" };
-    }
+/* 在线发音的候选地址：主源 → 备用源。换服务器比换音色更能救回网络问题 */
+function audioCandidates(text) {
+  const enc = encodeURIComponent(text);
+  const out = [];
+  if (cfg.engine === "custom" && cfg.customUrl) {
+    out.push(engineUrl(text));
+  } else {
+    const t = cfg.engine === "youdao-uk" ? 1 : 2;
+    out.push("https://dict.youdao.com/dictvoice?audio=" + enc + "&type=" + t);
+  }
+  // 备用源：百度翻译发音（不同主机，需不带 Referer，已在 getAudio 里设置）
+  out.push("https://fanyi.baidu.com/gettts?lan=en&text=" + enc + "&spd=3&source=web");
+  return out.filter((u, i, arr) => u && arr.indexOf(u) === i);
+}
+
+/** 依次尝试在线地址，任一成功即返回 */
+async function tryRemote(text) {
+  if (Date.now() < remoteCooldownUntil) return { ok: false, cooling: true };
+  const list = audioCandidates(text);
+  const errs = [];
+  for (let i = 0; i < list.length; i++) {
+    const url = list[i];
+    if (urlIsDead(url)) continue;
     try {
       await playAudioEl(getAudio(url), () => {
         const st = $("#status");
         if (playing && st) st.innerHTML = "在线发音加载中 <b>…</b>";
-      });
+      }, i === 0 ? 6000 : 5000);
       failedUrls.delete(url);
-      remoteFailStreak = 0;
-      return { ok: true, via: "remote" };
+      return { ok: true, url };
     } catch (e) {
-      // 自动播放被拦（自动下一题、定时触发）不是网络问题：别把地址标死、别计失败次数
+      // 自动播放被拦（自动下一题、定时触发）不是网络问题：别把地址标死
       const denied = !!e && (e.name === "NotAllowedError" ||
         /not allowed|user gesture|interact|gesture/i.test(String(e.message || "")));
-      if (!denied) {
-        markUrlDead(url);
-        remoteFailStreak++;
-        if (remoteFailStreak >= 2 && !voiceFallback) {
-          voiceFallback = true;
-          toast("在线发音连续没响应，本轮剩余单词改用系统语音");
-        } else if (Date.now() - lastFallbackToast > 15000) {
-          lastFallbackToast = Date.now();
-          toast("在线发音没响应，这个词改用系统语音");
-        }
-      } else {
-        showSoundBar("浏览器拦截了自动播放", "点「恢复播放」继续；之后这一轮就不会再被拦。");
-      }
-      const ok = await webSpeak(text);
-      if (!ok) noteSilent(denied ? "remote" : "web");
-      return { ok, via: ok ? "web" : "none" };
+      if (denied) return { ok: false, denied: true, err: e };
+      markUrlDead(url);
+      errs.push(e);
     }
   }
+  // 所有候选都「迟迟不出声」＝网络整体不通，进入冷却期，
+  // 否则接着往下每个词都要白等两轮超时
+  if (errs.some(e => e && e.message === "stall")) {
+    remoteCooldownUntil = Date.now() + 45000;
+  }
+  return { ok: false, err: errs[errs.length - 1], cooled: Date.now() < remoteCooldownUntil };
+}
+
+/** 系统语音也没声：连续两次就撤回熔断、切回在线，别让整轮锁死在坏通道上 */
+function afterSystemFailed(reason) {
+  sysFailStreak++;
+  noSoundCount++;
+  if (sysFailStreak >= 2 && (voiceFallback || remoteCooldownUntil)) {
+    voiceFallback = false;
+    remoteFailStreak = 0;
+    remoteCooldownUntil = 0;     // 系统语音是坏的，那就再给在线发音一次机会
+    failedUrls.clear();
+    toast("系统语音也没声，已切回在线发音再试一次");
+  }
+  if (noSoundCount >= 3 && !audioDead) {
+    audioDead = true;
+    showSoundBar("这一轮没有声音", "在线和系统语音都没出声。点「试听」定位问题；这轮先直接显示拼写，不影响过词。");
+  } else {
+    noteSilent(reason);
+  }
+  return { ok: false, via: "none" };
+}
+
+/** 只念一遍。返回 { ok, via }：via 会告诉调用方声音是从哪条链路出来的 */
+let lastFallbackToast = 0;
+async function speakOnceRaw(text) {
+  if (audioDead) return { ok: false, via: "none" };
+
+  if (isRemoteEngine()) {
+    const r = await tryRemote(text);
+    if (r.ok) { remoteFailStreak = 0; sysFailStreak = 0; return { ok: true, via: "remote" }; }
+
+    if (r.denied) {
+      showSoundBar("浏览器拦截了自动播放", "点「恢复播放」继续；之后这一轮就不会再被拦。");
+    } else {
+      remoteFailStreak++;
+      if (remoteFailStreak >= 2 && !voiceFallback) {
+        voiceFallback = true;
+        toast("在线发音连续没响应，改用系统语音；若系统语音也没声会自动切回来");
+      } else if (Date.now() - lastFallbackToast > 15000) {
+        lastFallbackToast = Date.now();
+        toast("在线发音没响应，这个词改用系统语音");
+      }
+    }
+
+    const ok = await webSpeak(text);
+    if (ok) { sysFailStreak = 0; return { ok: true, via: "web" }; }
+    return afterSystemFailed(r.denied ? "remote" : "web");
+  }
+
   const ok = await webSpeak(text);
-  if (!ok) noteSilent("web");
-  return { ok, via: ok ? "web" : "none" };
+  if (ok) { sysFailStreak = 0; return { ok: true, via: "web" }; }
+  return afterSystemFailed("web");
 }
 
 async function speakOnce(text) {
@@ -955,7 +1039,10 @@ async function playSequence(autoReveal) {
   clearNextTimer();
   playing = true;
   paintPlayState();
-
+  if (audioDead) {
+    const st = $("#status");
+    if (st) st.innerHTML = "⚠ 本轮没有音频 · 直接显示拼写";
+  }
   const total = Math.max(1, Math.min(9, parseInt(cfg.repeat, 10) || 1));
   const gap = Math.max(0, Number(cfg.gap) || 0);
   preload(item.w);
@@ -1145,9 +1232,13 @@ function paintStage() {
   paintStats();
   paintList();
   if (!playing && !cdTimer) {
-    $("#status").textContent = total
-      ? (revealed ? "释义已显示 · 可重播或继续" : "点圆形按钮再听一遍")
-      : "点击开始，听发音后回忆释义";
+    if (audioDead) {
+      $("#status").innerHTML = "⚠ 本轮没有音频 · 已直接显示拼写";
+    } else {
+      $("#status").textContent = total
+        ? (revealed ? "释义已显示 · 可重播或继续" : "点圆形按钮再听一遍")
+        : "点击开始，听发音后回忆释义";
+    }
   }
 }
 
@@ -1267,6 +1358,7 @@ function bind() {
   $("#sbRetry").onclick = () => {
     hideSoundBar();
     unlockAudio();
+    resetRemoteStreak();     // 用户主动点＝新的一次机会：清空所有熔断与黑名单
     if (started && !finished && queue.length) playSequence(true);
     else testSound();
   };
@@ -1401,10 +1493,12 @@ function bind() {
   /* 播放控制 */
   $("#btnPlay").onclick = () => {
     if (!started) { startSession(false); return; }
+    retryAudioIfDead();      // 用户主动点播放＝新的一次机会
     playSequence(true);
   };
   $("#btnReplay").onclick = () => {
     if (!started) { startSession(false); return; }
+    retryAudioIfDead();
     playSequence(true);
   };
   $("#btnReveal").onclick = () => {
