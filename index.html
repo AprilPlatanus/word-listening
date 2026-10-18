@@ -279,6 +279,9 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:#fff
   box-shadow:0 10px 26px -12px rgba(0,0,0,.6);opacity:0;pointer-events:none;transition:.28s;z-index:99;max-width:88vw;
 }
 #toast.show{opacity:1;transform:translate(-50%,0)}
+/* 微调面板打开时把提示条抬高，别被面板压住 */
+body.adj-open #toast{bottom:250px}
+@media (max-width:640px){body.adj-open #toast{bottom:288px}}
 
 @media (max-width:900px){
   .layout{grid-template-columns:1fr}
@@ -333,7 +336,7 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:#fff
 .sp-list:empty{display:none}
 .sp-card{
   display:inline-flex;flex-direction:column;gap:1px;align-items:flex-start;text-align:left;
-  padding:6px 11px 7px;border-radius:11px;border:1px solid var(--line);background:#fff;
+  padding:6px 15px 7px 11px;border-radius:11px;border:1px solid var(--line);background:#fff;
   transition:.15s;max-width:100%;
 }
 .sp-card:hover{border-color:#dcc9a8;transform:translateY(-1px);box-shadow:0 7px 16px -12px rgba(70,50,20,.55)}
@@ -345,6 +348,54 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:#fff
 .sp-card .m{display:flex;gap:5px;align-items:center;font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums;line-height:1.35}
 .sp-card .tag{color:var(--gold-d);background:#f7ecd8;border-radius:4px;padding:0 4px;font-size:9.5px;letter-spacing:.02em}
 .sp-card.dead{opacity:.55;cursor:not-allowed}
+.sp-card.edited{border-color:#dcc9a8;background:#fffdf8}
+.sp-card.edited .dur::after{content:" ·手调";color:var(--gold-d);font-size:9px}
+
+/* 切点微调 */
+.sp-card{position:relative}
+.sp-adjbtn{
+  position:absolute;right:2px;top:2px;width:17px;height:17px;line-height:15px;text-align:center;
+  border-radius:5px;color:#a8906a;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  opacity:.5;transition:.12s;user-select:none;
+}
+.sp-card:hover .sp-adjbtn,.sp-card.on .sp-adjbtn,.sp-card.edited .sp-adjbtn{opacity:1}
+.sp-adjbtn svg{width:9.5px;height:9.5px;display:block}
+.sp-adjbtn:hover{background:#f2e8d8;color:var(--gold-d)}
+
+.adj{
+  position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:80;
+  width:min(560px,calc(100vw - 24px));background:#fff;border:1px solid var(--line);
+  border-radius:15px;box-shadow:0 18px 48px -18px rgba(60,42,18,.42),0 2px 8px rgba(60,42,18,.08);
+  padding:12px 14px 12px;animation:adjIn .16s ease-out;
+}
+@keyframes adjIn{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
+.adj-h{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.adj-h b{font-size:14.5px;color:var(--ink-2);font-weight:650}
+.adj-h span{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.adj-x{
+  margin-left:auto;width:24px;height:24px;border:0;background:transparent;border-radius:7px;
+  font-size:16px;line-height:1;color:var(--muted);cursor:pointer;
+}
+.adj-x:hover{background:#f5efe4;color:var(--ink-2)}
+.adj canvas{display:block;width:100%;height:62px;border-radius:8px;background:#fbf8f2}
+.adj-row{display:flex;flex-direction:column;gap:5px;margin:9px 0 8px}
+.adj-row label{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted)}
+.adj-row label>span{width:30px;flex:none;font-variant-numeric:tabular-nums}
+.adj-row input[type=range]{
+  flex:1;height:16px;accent-color:#b98a4c;background:transparent;
+  -webkit-appearance:none;appearance:none;cursor:pointer;
+}
+.adj-row input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:#e9e0d0}
+.adj-row input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:#b98a4c;
+  margin-top:-5.5px;box-shadow:0 1px 3px rgba(80,60,30,.28);border:2px solid #fff;
+}
+.adj-row input[type=range]:focus{outline:none}
+.adj-row input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 3px rgba(185,138,76,.22)}
+.adj-row input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:#e9e0d0}
+.adj-row input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:#b98a4c;border:2px solid #fff}
+.adj-f{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.adj-tip{font-size:10.5px;color:var(--muted);line-height:1.5}
 
 .sp-empty{text-align:center;padding:46px 18px 34px;color:var(--muted)}
 .sp-empty h3{margin:0 0 4px;font-size:15.5px;font-weight:650;color:var(--ink-2)}
@@ -629,6 +680,24 @@ mutual,相互的"></textarea>
         <p>系统会把原文里的单词与短语汇总去重（重复只留一条，已包含在短语里的词不再单列），
         再按停顿把音频切成对应的小段。之后点任意词卡，放的就是它在这段录音里的那一小段。</p>
         <p class="sp-note">纯文本也能整理词表，只是不能点读；没有上传音频时按钮依旧会给出词表。</p>
+      </div>
+
+      <div class="adj" id="spAdj" hidden>
+        <div class="adj-h">
+          <b id="spAdjWord">—</b>
+          <span id="spAdjMeta"></span>
+          <button class="adj-x" id="spAdjClose" type="button" title="关闭">×</button>
+        </div>
+        <canvas id="spAdjWave"></canvas>
+        <div class="adj-row">
+          <label><span>起</span><input type="range" id="spAdjS" step="0.01" min="0" max="1" value="0"></label>
+          <label><span>止</span><input type="range" id="spAdjE" step="0.01" min="0" max="1" value="1"></label>
+        </div>
+        <div class="adj-f">
+          <button class="btn gold" id="spAdjPlay" type="button">▶ 试听</button>
+          <button class="btn" id="spAdjAuto" type="button">恢复自动</button>
+          <span class="adj-tip">切在词与词之间的安静处最干净</span>
+        </div>
       </div>
     </main>
   </section>
@@ -1871,6 +1940,11 @@ function bind() {
   };
 
   /* 键盘 */
+  // 微调面板打开时，Esc 关掉它（在听测视图也要生效）
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && SP.adj) { spCloseAdj(); }
+  });
+
   document.addEventListener("keydown", e => {
     if (viewName !== "listen") return;
     const tag = (e.target.tagName || "").toLowerCase();
@@ -1929,9 +2003,9 @@ function resetCounter() {
 const SP = {
   ctx: null, buffer: null, fileName: "",
   sentences: [], units: [], groups: [],
-  peaks: null, regions: [],
+  peaks: null, regions: [], env: null, regionsRaw: null,
   srcs: [], token: 0, cur: -1, curSeg: null, raf: 0, playAt: 0,
-  repeat: 1, gap: 0.8, mode: "auto", method: ""
+  repeat: 1, gap: 0.8, mode: "auto", method: "", adj: null
 };
 
 /* ---------- 常用短语（动词短语 + 固定搭配） ---------- */
@@ -2016,11 +2090,22 @@ function spSyll(w) {
   if (/[^aeiouy]le$/.test(s)) n++;
   return Math.max(1, Math.min(7, n));
 }
-/** 一个词大致占多久：音节 + 长度（quiet 这种「看起来短其实两个音节」的词靠长度兜住）+ 标点停顿 */
-function spWordWeight(tok) {
-  const letters = String(tok.w).replace(/[^A-Za-z]/g, "").length;
-  return 0.14 * spSyll(tok.w) + 0.032 * letters + 0.04 + (tok.p === 2 ? 0.55 : tok.p === 1 ? 0.28 : 0.04);
+/**
+ * 一个词大致占多久（只管发音本身）。
+ * 词长与发音时长是「次线性」关系：committee 的音节是 the 的 3 倍，
+ * 实际却只长 20~30%（长词会被压缩，功能词会拖长）。早先用线性模型，
+ * 长词被估成一秒多，后面所有目标点整体后移，切点就一排排地错位——
+ * 这里改用对数，宁可估得平一点：估平了 DP 只差几十毫秒，
+ * 估陡了会顺着句子一路漂。
+ */
+function spWordPure(tok) {
+  const letters = String(tok.w).replace(/[^A-Za-z]/g, "").length || 1;
+  const syl = Math.min(4, spSyll(tok.w));
+  return 0.26 + 0.10 * Math.log(1 + letters) + 0.015 * syl;
 }
+/** 标点后的停顿时长：单独建模，绝不能混进它前面那个词的时长里 */
+function spPauseW(p) { return p >= 2 ? 0.5 : p === 1 ? 0.28 : 0; }
+function spWordWeight(tok) { return spWordPure(tok) + spPauseW(tok.p | 0); }
 
 /* 句子切分：按行 + 句末标点，过长再按逗号/词数切 */
 function spSplitByComma(s) {
@@ -2237,37 +2322,247 @@ function spDetect(buffer) {
     regions[k].start = Math.max(prevEnd, regions[k].start - pad);
     regions[k].end = Math.min(nextStart, Math.max(regions[k].start + 0.05, regions[k].end + pad));
   }
-  SP.env = { rms, hop, sr };
+  SP.env = { rms, hop, sr, sm: null, ref: null };
   SP.regionsRaw = raw;
+  spBuildEnvelope();
   return regions;
 }
 
 /**
- * 把切点吸到局部能量低谷。
- * 纯按音节比例分配只能保证「大致对」，但词与词之间通常有一小段最安静的缝隙，
- * 把切点挪到这 20ms 以内，点读时就不容易切进词里或拖上前后半个词。
+ * 能量包络 + 局部参考电平。
+ * 只靠「全局阈值」是判不准安静程度的：整段录音前半段大声、后半段小声，
+ * 后半段的每一个词间缝隙在全宇宙看来都不算低。所以给每个位置单独算一个
+ * 「附近有多响」的参考值，用「此处比附近安静多少」来衡量它像不像一个词边界。
  */
-function spSnap(t, lo, hi) {
+function spBuildEnvelope() {
   const env = SP.env;
-  if (!env || !env.rms.length) return t;
-  const FR = env.hop / env.sr;
-  const rad = Math.max(2, Math.round(0.065 / FR));
-  const c = Math.round(t / FR);
-  const a = Math.max(1, c - rad), z = Math.min(env.rms.length - 2, c + rad);
-  if (z <= a) return t;
-  let best = -1, bestV = Infinity;
-  for (let i = a; i <= z; i++) {
-    const v = env.rms[i - 1] * 0.5 + env.rms[i] + env.rms[i + 1] * 0.5;
-    if (v < bestV) { bestV = v; best = i; }
+  if (!env || !env.rms || env.sm) return;
+  const rms = env.rms, n = rms.length, FR = env.hop / env.sr;
+  const sm = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const a = i > 0 ? rms[i - 1] : rms[i];
+    const b = i + 1 < n ? rms[i + 1] : rms[i];
+    sm[i] = (a + 2 * rms[i] + b) / 4;
   }
-  if (best < 0) return t;
-  const nt = best * FR;
-  return (nt < lo || nt > hi) ? t : nt;
+  // 滑动窗口最大值（单调队列，O(n)）：±0.4s 内最响到哪
+  const R = Math.max(2, Math.round(0.4 / FR));
+  const ref = new Float32Array(n);
+  const dq = new Int32Array(n);
+  let head = 0, tail = 0, next = 0;
+  for (let i = 0; i < n; i++) {
+    const hi = Math.min(n - 1, i + R);
+    while (next <= hi) {
+      while (tail > head && sm[dq[tail - 1]] <= sm[next]) tail--;
+      dq[tail++] = next++;
+    }
+    while (head < tail && dq[head] < i - R) head++;
+    ref[i] = head < tail ? sm[dq[head]] : sm[i];
+  }
+  env.sm = sm; env.ref = ref;
+
+  /**
+   * 切点候选：局部能量极小点，按「比附近安静多少」评分 0~1。
+   * 词与词之间即使连读，包络上通常也有一个小凹陷；真正的换气/停顿凹陷更深。
+   */
+  env.cands = null;
+  env.allCands = (() => {
+    const list = [];
+    for (let i = 1; i < n - 1; i++) {
+      if (!(sm[i] <= sm[i - 1] && sm[i] <= sm[i + 1])) continue;
+      const r = ref[i];
+      const q = r > 1e-6 ? Math.max(0, 1 - sm[i] / r) : 0;
+      if (q < 0.14) continue;
+      list.push({ t: i * FR, q });
+    }
+    return list;
+  })();
+}
+
+/** 取 [a,b] 区间里的切点候选，做非极大抑制：±55ms 内只留最安静的那个 */
+function spCutCandidates(a, b) {
+  const env = SP.env;
+  if (!env || !env.allCands) return [];
+  const all = env.allCands;
+  const hit = [];
+  for (let i = 0; i < all.length; i++) if (all[i].t > a && all[i].t < b) hit.push(all[i]);
+  hit.sort((x, y) => y.q - x.q);
+  const keep = [];
+  for (let i = 0; i < hit.length; i++) {
+    let ok = true;
+    for (let k = 0; k < keep.length; k++) {
+      if (Math.abs(keep[k].t - hit[i].t) < 0.055) { ok = false; break; }
+    }
+    if (ok) keep.push(hit[i]);
+    if (keep.length >= 600) break;
+  }
+  keep.sort((x, y) => x.t - y.t);
+  return keep;
+}
+
+/**
+ * 句子内部的词边界：在「这颗词大致该在这里」的基础上，
+ * 把所有边界一次性做全局最优匹配（单调 DP），而不是一个个就地找凹陷。
+ * 就地找只能修 ±65ms 的误差，累积漂移根本修不回来；
+ * 一次性 DP 让每个切点都能在整句范围内挪到真正安静的位置，
+ * 同时「不要乱跳顺序」由单调性天然保证。
+ */
+function spAlignTokens(sents, spans, dur) {
+  const out = [];
+  for (let si = 0; si < sents.length; si++) {
+    const s = sents[si];
+    const L = s.toks.length;
+    const box = spans[si] || { s: 0, e: dur };
+    // 句子区间常常带着首尾的换气/空白（尤其最后一句），
+    // 不剪掉的话尾部那一大段静音会全摊给最后一个词，点读时听着像没读完。
+    const bd = spSpeechBounds(box.s, box.e);
+    const s0 = Math.max(0, bd.s), e0 = Math.min(dur, bd.e);
+    const total = e0 - s0;
+    if (L <= 1 || total < 0.05) {
+      out.push([{ s: s0, e: Math.max(s0 + 0.02, e0) }]);
+      continue;
+    }
+
+    // 时长模型：语音总时长按词权重分摊，标点停顿单独插入。
+    // 这样「期望段长」和「切点目标位置」出自同一个模型，不会互相打架——
+    // 早先把句末停顿算进最后一个词的时长，DP 就会从上一个词那里抢时间来凑，
+    // 结果 last two words 被并成一段。
+    const pure = s.toks.map(spWordPure);
+    const pause = s.toks.map(k => spPauseW(k.p | 0));
+    let sumPure = 0, sumPause = 0;
+    for (let i = 0; i < L; i++) { sumPure += pure[i]; if (i < L - 1) sumPause += pause[i]; }
+    const scale = total / Math.max(0.1, sumPure + sumPause);
+    const targets = [], toler = [], expDur = [];
+    let acc = s0;
+    for (let i = 0; i < L; i++) {
+      const d = (pure[i] + (i < L - 1 ? pause[i] : 0)) * scale;
+      expDur.push(d);
+      acc += d;
+      if (i < L - 1) {
+        targets.push(acc);
+        // 标点处的停顿长度是未知量（0.1s 还是 0.8s 完全看录音），
+        // 这种边界给更大的容差，让 DP 顺着真实停顿走，而不是被公式钉死。
+        const p = s.toks[i].p | 0;
+        toler.push(Math.max(0.13, Math.min(0.5, d * 1.05)) * (p >= 2 ? 2.4 : p === 1 ? 1.8 : 1));
+      }
+    }
+
+    // 候选 = 能量谷点 + 比例目标点（目标点保证 DP 永远有路可走，不至于卡死）
+    const cands = spCutCandidates(s0 + 0.02, e0 - 0.02);
+    for (let i = 0; i < targets.length; i++) cands.push({ t: targets[i], q: 0.45, tgt: i });
+    // VAD 段落之间的真实停顿：给最高信任
+    const raw = SP.regionsRaw || [];
+    for (let i = 0; i < raw.length - 1; i++) {
+      const g = (raw[i].end + raw[i + 1].start) / 2;
+      if (g > s0 + 0.02 && g < e0 - 0.02) cands.push({ t: g, q: 0.98 });
+    }
+    cands.sort((a, b) => a.t - b.t);
+    // 去重（同位置留最安静的）
+    const cs = [];
+    for (let i = 0; i < cands.length; i++) {
+      const last = cs[cs.length - 1];
+      if (last && Math.abs(last.t - cands[i].t) < 0.02) { if (cands[i].q > last.q) cs[cs.length - 1] = cands[i]; }
+      else cs.push(cands[i]);
+    }
+    const M = cs.length, K = L - 1;
+    if (!M) { out.push(splitEvenly(s0, e0, pure)); continue; }
+
+    const minGap = Math.max(0.05, Math.min(0.16, total / (L + 1) * 0.42));
+    const INF = 1e18;
+    // 代价：偏得越远越贵（平方，靠近目标几乎免费）+ 越吵越贵；深谷再给一点奖励
+    const costAt = (i, j) => {
+      const d = (cs[j].t - targets[i]) / toler[i];
+      const q = cs[j].q;
+      return Math.min(9, d * d) * 0.35 + (1 - q) * 0.9 - (q > 0.72 ? 0.05 : 0);
+    };
+    // 一段语音的时长与它「该有多长」差得太多就罚。
+    // 这一项才是防错位的主心骨：只盯切点位置的话，一旦两个切点被吸到同一个
+    // 长停顿上，中间那个词就被整段吃掉，而总代价看起来居然不大。
+    const segPen = (real, exp) => {
+      const r = Math.max(0.22, Math.min(4.5, real / Math.max(0.06, exp)));
+      return Math.abs(Math.log(r)) * 0.5;
+    };
+
+    const dp = new Float64Array(K * M).fill(INF);
+    const bk = new Int32Array(K * M).fill(-1);
+    for (let i = 0; i < K; i++) {
+      const off = i * M, offP = (i - 1) * M;
+      for (let j = 0; j < M; j++) {
+        const t = cs[j].t;
+        const base = costAt(i, j);
+        if (i === 0) {
+          dp[j] = base + segPen(t - s0, expDur[0]);
+          continue;
+        }
+        let best = INF, bi = -1;
+        const maxSeg = expDur[i] * 3.2 + 0.4;
+        for (let jp = j - 1; jp >= 0; jp--) {
+          const seg = t - cs[jp].t;
+          if (seg < minGap) continue;
+          if (seg > maxSeg) break;               // 再往前只会更长
+          const pd = dp[offP + jp];
+          if (pd >= INF) continue;
+          const v = pd + base + segPen(seg, expDur[i]);
+          if (v < best) { best = v; bi = jp; }
+        }
+        dp[off + j] = best; bk[off + j] = bi;
+      }
+    }
+
+    // 最后一段（最后一个切点 → 句末）也要接受同样的检查
+    let bestJ = -1, bestV = INF;
+    for (let j = 0; j < M; j++) {
+      const v = dp[(K - 1) * M + j] + segPen(e0 - cs[j].t, expDur[K]);
+      if (v < bestV) { bestV = v; bestJ = j; }
+    }
+    if (bestJ < 0) { out.push(splitEvenly(s0, e0, pure)); continue; }
+
+    const cuts = new Array(K);
+    let j = bestJ;
+    for (let i = K - 1; i >= 0; i--) { cuts[i] = cs[j].t; j = bk[i * M + j]; }
+    // 单调兜底（理论上 DP 已保证，防止同位置四舍五入）
+    for (let i = 1; i < K; i++) if (cuts[i] < cuts[i - 1] + 0.03) cuts[i] = cuts[i - 1] + 0.03;
+    for (let i = K - 1; i >= 0; i--) if (cuts[i] > e0 - 0.03 * (K - i)) cuts[i] = e0 - 0.03 * (K - i);
+    for (let i = 0; i < K; i++) if (cuts[i] < s0 + 0.03 * (i + 1)) cuts[i] = s0 + 0.03 * (i + 1);
+
+    const b = [s0, ...cuts, e0];
+    out.push(s.toks.map((k, i) => ({ s: b[i], e: Math.max(b[i] + 0.02, b[i + 1]) })));
+  }
+  return out;
+}
+
+/** 把区间收缩到真正的语音范围（用检测到的有声段），首尾各留 20ms 余量 */
+function spSpeechBounds(a, b) {
+  const rs = SP.regions || [];
+  let s = a, e = b, found = false;
+  for (let i = 0; i < rs.length; i++) {
+    const r = rs[i];
+    if (r.end <= a + 0.02 || r.start >= b - 0.02) continue;
+    if (!found) { s = Math.max(a, r.start - 0.02); found = true; }
+    e = Math.min(b, r.end + 0.02);
+  }
+  if (!found) return { s: a, e: b };
+  if (e - s < 0.05) return { s: a, e: b };
+  return { s, e };
+}
+
+function splitEvenly(s0, e0, ws) {
+  const sum = ws.reduce((a, b) => a + b, 0) || 1;
+  const total = e0 - s0;
+  let acc = s0;
+  const b = [s0];
+  for (let i = 0; i < ws.length; i++) { acc += total * ws[i] / sum; b.push(Math.min(e0, acc)); }
+  b[b.length - 1] = e0;
+  return b.slice(0, -1).map((v, i) => ({ s: v, e: b[i + 1] }));
 }
 
 /* ---------- 句子 ↔ 语音段 对齐 ---------- */
 function spAlignSentences(sents, regions, duration) {
   const n = sents.length;
+  // 段数正好等于句数：逐句朗读的典型情况，一一对应，不用猜。
+  // 这比任何比例推断都准，也是最常见的素材形态。
+  if (n > 0 && regions.length === n) {
+    return regions.map(r => ({ s: Math.max(0, r.start), e: Math.min(duration, r.end) }));
+  }
   const ws = sents.map(s => {
     let t = 0;
     s.toks.forEach(k => { t += spWordWeight(k); });
@@ -2288,7 +2583,10 @@ function spAlignSentences(sents, regions, duration) {
   const gaps = [];
   for (let i = 0; i < rawR.length - 1; i++) {
     const cut = Math.max(rawR[i].end + 0.03, rawR[i + 1].start - 0.05);
-    gaps.push(cut);
+    // 间隙宽度：句与句之间通常停得比词与词之间久得多，
+    // 这是句边界最强的线索。不带上它，DP 会把句界切进上句的最后一个词。
+    const wide = Math.min(1, Math.max(0, rawR[i + 1].start - rawR[i].end) / 0.34);
+    gaps.push({ t: cut, w: wide });
   }
   let M = gaps.length;
   // 极端长音频时限制 DP 规模
@@ -2298,7 +2596,7 @@ function spAlignSentences(sents, regions, duration) {
   for (let i = 0; i < gaps.length; i += stride) gs.push(gaps[i]);
   M = gs.length;
 
-  const tol = Math.max(0.35, Math.min(2.6, span / Math.max(6, n) * 1.1));
+  const tol = Math.max(0.35, Math.min(1.8, span / Math.max(6, n) * 0.85));
   const bounds = new Array(K).fill(null);
   if (K > 0 && M > 0) {
     const INF = 1e18;
@@ -2312,8 +2610,8 @@ function spAlignSentences(sents, regions, duration) {
         let best = dp[i][j - 1], ch = 1;                    // 这个间隙不用
         const vSkip = dp[i - 1][j] + skipB;                 // 这个边界不吸附，退回按比例
         if (vSkip < best) { best = vSkip; ch = 3; }
-        const d = Math.abs(gs[j - 1] - tgt);
-        const vMatch = dp[i - 1][j - 1] + (d > tol ? tol * 4 + d : d);
+        const d = Math.abs(gs[j - 1].t - tgt);
+        const vMatch = dp[i - 1][j - 1] + (d > tol ? tol * 3 + d : d) - gs[j - 1].w * 0.9;
         if (vMatch < best) { best = vMatch; ch = 2; }
         dp[i][j] = best; bk[i][j] = ch;
       }
@@ -2321,7 +2619,7 @@ function spAlignSentences(sents, regions, duration) {
     let i = K, j = M;
     while (i > 0 && j > 0) {
       const ch = bk[i][j];
-      if (ch === 2) { bounds[i - 1] = gs[j - 1]; i--; j--; }
+      if (ch === 2) { bounds[i - 1] = gs[j - 1].t; i--; j--; }
       else if (ch === 3) { i--; }
       else { j--; }
     }
@@ -2402,32 +2700,8 @@ function spAnalyze() {
       spans = spAlignSentences(sents, regions, dur);
       SP.method = "vad";
     }
-    // 句内按「音节数 + 标点停顿」分配每个词的时长，再把切点吸到能量低谷
-    const tokTimes = sents.map((s, si) => {
-      const box = spans[si];
-      const ws = s.toks.map(spWordWeight);
-      const sum = ws.reduce((a, b) => a + b, 0) || 1;
-      const total = Math.max(0.05, box.e - box.s);
-      // 每个词至少分到一小段，否则 thin 词会分到 0.08s，点读时直接被切掉
-      const minDur = Math.min(0.22, Math.max(0.07, total / ws.length * 0.55));
-      let durs = ws.map(w => Math.max(minDur, total * w / sum));
-      const dsum = durs.reduce((a, b) => a + b, 0) || 1;
-      durs = durs.map(d => d * total / dsum);
-      const b = [box.s];
-      let acc = box.s;
-      for (let i = 0; i < durs.length; i++) { acc += durs[i]; b.push(Math.min(box.e, acc)); }
-      b[b.length - 1] = box.e;
-      for (let i = 1; i < b.length - 1; i++) {
-        const lo = b[i - 1] + 0.04, hi = b[i + 1] - 0.04;
-        if (hi > lo) b[i] = Math.min(hi, spSnap(b[i], lo, hi) + 0.03);
-      }
-      // 吸附会让相邻切点互相靠拢，这里再兜一层最小词长
-      const minGap = Math.min(0.15, Math.max(0.05, total / (ws.length + 1) * 0.5));
-      for (let i = 1; i < b.length - 1; i++) if (b[i] < b[i - 1] + minGap) b[i] = b[i - 1] + minGap;
-      for (let i = b.length - 2; i >= 1; i--) if (b[i] > b[i + 1] - minGap) b[i] = b[i + 1] - minGap;
-      for (let i = 1; i < b.length - 1; i++) if (b[i] < b[i - 1] + 0.02) b[i] = b[i - 1] + 0.02;
-      return s.toks.map((k, i) => ({ s: b[i], e: b[i + 1] }));
-    });
+    // 句内的词边界：全局 DP 匹配到真实能量谷点（见 spAlignTokens）
+    const tokTimes = spAlignTokens(sents, spans, dur);
     units.forEach(u => {
       const a = tokTimes[u.si][u.wi];
       const b = tokTimes[u.si][u.wi + u.len - 1];
@@ -2436,6 +2710,8 @@ function spAnalyze() {
     });
   } else {
     SP.regions = [];
+    SP.regionsRaw = null;
+    SP.env = null;
   }
 
   /* ---- 去重 + 短语优先 ---- */
@@ -2708,6 +2984,7 @@ async function spPlayGroup(i, my) {
 }
 async function spPlayOne(i) {
   if (!SP.buffer) { toast("没有上传音频，只能看词表"); return; }
+  if (SP.adj && SP.adj.gi !== i) spCloseAdj();
   spEnsureCtx();
   const my = ++SP.token;
   spStopSources();
@@ -2731,8 +3008,126 @@ async function spPlayAll() {
   spClearCur();
 }
 
+/* ---------- 切点微调 ---------- */
+/* 自动对齐只能保证「大概率对」，真实的连读、吞音、临时改口没法靠算法全猜中。
+   所以给每一段一个可以手调前后切点的地方：拖动滑块，波形上直接看见切在哪。 */
+function spOpenAdj(gi) {
+  if (!SP.buffer) { toast("没有音频可微调"); return; }
+  const g = SP.groups[gi];
+  if (!g || !g.seg) return;
+  spStop();
+  const d = SP.buffer.duration;
+  const s = Math.max(0, +g.seg.s), e = Math.min(d, +g.seg.e);
+  SP.adj = { gi, s, e, autoS: s, autoE: e, win: [Math.max(0, s - 0.6), Math.min(d, e + 0.6)] };
+  $("#spAdjWord").textContent = g.text;
+  $("#spAdj").hidden = false;             // 先显示，否则 canvas 宽度是 0
+  document.body.classList.add("adj-open");
+  const [a, b] = SP.adj.win;
+  ["#spAdjS", "#spAdjE"].forEach(sel => {
+    const inp = $(sel);
+    inp.min = a.toFixed(2); inp.max = b.toFixed(2); inp.step = "0.01";
+  });
+  $("#spAdjS").value = s.toFixed(2);
+  $("#spAdjE").value = e.toFixed(2);
+  spAdjApply();
+}
+
+function spAdjApply() {
+  const A = SP.adj;
+  if (!A) return;
+  const sIn = $("#spAdjS"), eIn = $("#spAdjE");
+  let s = parseFloat(sIn.value), e = parseFloat(eIn.value);
+  // 谁在动就把另一个让开，永远保持 s < e
+  if (e - s < 0.04) {
+    if (document.activeElement === eIn) { e = s + 0.04; eIn.value = e.toFixed(2); }
+    else { s = Math.max(0, e - 0.04); sIn.value = s.toFixed(2); }
+  }
+  A.s = s; A.e = e;
+  $("#spAdjMeta").textContent = s.toFixed(2) + " → " + e.toFixed(2) + " s（" + (e - s).toFixed(2) + " s）";
+
+  const g = SP.groups[A.gi];
+  if (g) {
+    g.seg.s = s; g.seg.e = e;
+    const u = SP.units[g.occ[0]];
+    if (u) { u.s = s; u.e = e; }
+    g.manual = (Math.abs(s - A.autoS) > 0.005 || Math.abs(e - A.autoE) > 0.005);
+    spUpdateCardDur(A.gi);
+  }
+  spDrawAdj();
+}
+
+function spUpdateCardDur(i) {
+  const el = document.querySelector('#spList .sp-card[data-i="' + i + '"] .dur');
+  const g = SP.groups[i];
+  if (!el || !g) return;
+  el.textContent = (g.seg.e - g.seg.s).toFixed(2) + "s";
+  const card = el.closest(".sp-card");
+  if (card) card.classList.toggle("edited", !!g.manual);
+}
+
+function spDrawAdj() {
+  const cv = $("#spAdjWave"), A = SP.adj;
+  if (!cv || !A || !SP.buffer) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const w = Math.max(80, cv.clientWidth || 300), h = 62;
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  }
+  const g = cv.getContext("2d");
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, w, h);
+  const a = A.win[0], b = A.win[1];
+  const data = SP.buffer.getChannelData(0), sr = SP.buffer.sampleRate;
+  const i0 = Math.max(0, Math.floor(a * sr)), i1 = Math.min(data.length, Math.ceil(b * sr));
+  const cols = Math.max(50, Math.round(w));
+  const step = Math.max(1, Math.floor((i1 - i0) / cols));
+  const mid = h / 2;
+  for (let c = 0; c < cols; c++) {
+    const p0 = i0 + c * step, p1 = Math.min(i1, p0 + step);
+    if (p0 >= i1) break;
+    let mn = 0, mx = 0;
+    for (let k = p0; k < p1; k++) { const v = data[k]; if (v < mn) mn = v; else if (v > mx) mx = v; }
+    const x = (c / cols) * w;
+    const y1 = mid - mx * mid * 0.9, y2 = mid - mn * mid * 0.9;
+    g.fillStyle = "#c9b99f";
+    g.fillRect(x, y1, Math.max(1, w / cols - 0.3), Math.max(1, y2 - y1));
+  }
+  const X = t => (t - a) / Math.max(0.001, b - a) * w;
+  g.fillStyle = "rgba(185,138,76,.15)";
+  g.fillRect(X(A.s), 0, Math.max(1, X(A.e) - X(A.s)), h);
+  g.fillStyle = "rgba(152,104,44,.95)";
+  g.fillRect(X(A.s) - 0.9, 0, 1.8, h);
+  g.fillRect(X(A.e) - 0.9, 0, 1.8, h);
+  g.fillStyle = "rgba(152,104,44,.95)";
+  g.beginPath(); g.moveTo(X(A.s) - 4, 0); g.lineTo(X(A.s) + 4, 0); g.lineTo(X(A.s), 6); g.fill();
+  g.beginPath(); g.moveTo(X(A.e) - 4, 0); g.lineTo(X(A.e) + 4, 0); g.lineTo(X(A.e), 6); g.fill();
+}
+
+async function spAdjPlay() {
+  const A = SP.adj;
+  if (!A || !SP.buffer) return;
+  spEnsureCtx();
+  const my = ++SP.token;
+  spStopSources();
+  const seg = { s: A.s, e: A.e };
+  spMarkPlaying(A.gi, seg);
+  await spSlice(A.s, Math.max(0.05, A.e - A.s));
+  if (my !== SP.token) return;
+  spClearCur();
+}
+
+function spCloseAdj() {
+  if (!SP.adj) return;
+  spStop();
+  SP.adj = null;
+  $("#spAdj").hidden = true;
+  document.body.classList.remove("adj-open");
+  spDrawWave();
+}
+
 /* ---------- 渲染 ---------- */
 function spRender(res) {
+  if (SP.adj) spCloseAdj();          // 重新整理后旧索引就失效了
   const groups = SP.groups;
   const nPhrase = groups.filter(g => g.kind === "phrase").length;
   $("#spCount").textContent = groups.length;
@@ -2750,11 +3145,13 @@ function spRender(res) {
     const meta = [];
     if (g.kind === "phrase") meta.push('<span class="tag">短语</span>');
     if (g.occ.length > 1) meta.push("<span>" + g.occ.length + " 次</span>");
-    meta.push("<span>" + (has ? dur.toFixed(2) + "s" : "无音频") + "</span>");
+    meta.push('<span class="dur">' + (has ? dur.toFixed(2) + "s" : "无音频") + "</span>");
     return '<button class="sp-card' + (has ? "" : " dead") + '" data-i="' + i + '" type="button"' +
       ' title="' + esc((g.sent || "").slice(0, 90)) + '">' +
       '<span class="t">' + esc(g.text) + "</span>" +
-      '<span class="m">' + meta.join("") + "</span></button>";
+      '<span class="m">' + meta.join("") + "</span>" +
+      (has ? '<span class="sp-adjbtn" data-adj="' + i + '" title="微调这一段的前后切点"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M11.4 1.8 14.2 4.6 5.6 13.2 2.1 14.1 3 10.6z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></span>' : "") +
+      "</button>";
   }).join("");
 
   if (SP.buffer) {
@@ -2770,7 +3167,7 @@ function spRender(res) {
     let msg;
     if (!SP.buffer) msg = "还没有音频：已按原文整理出词表，上传音频后重新点「整理并切分」即可点读。";
     else if (SP.method === "srt") msg = "已按文本里的 SRT 时间轴对齐，切点最准。";
-    else msg = "识别到 " + SP.regions.length + " 段语音，切点吸附在停顿处。逐句朗读的录音最准；连读很快的素材会有偏差。";
+    else msg = "识别到 " + SP.regions.length + " 段语音，切点吸附在真实停顿处。个别词切偏了，点词卡右上角的 ✎ 手动挪一下。";
     // 原文和录音长度差太多时，比例分配就没意义了，先说清楚
     if (SP.buffer && SP.method === "vad") {
       const nWords = SP.sentences.reduce((a, s) => a + s.toks.length, 0);
@@ -2799,11 +3196,15 @@ function switchView(name) {
   $$("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.view === name));
   $("#viewListen").hidden = name !== "listen";
   $("#viewSplit").hidden = name !== "split";
+  if (name !== "split" && SP.adj) spCloseAdj();
   if (name === "listen") {
     spStop();
   } else {
     stopPlayback();
-    setTimeout(() => { if (SP.buffer) { spBuildPeaks(); spDrawWave(); } }, 40);
+    setTimeout(() => {
+      if (SP.buffer) { spBuildPeaks(); spDrawWave(); }
+      if (SP.adj) spDrawAdj();
+    }, 40);
   }
   try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e) { }
 }
@@ -2854,12 +3255,30 @@ function bindSplit() {
   };
 
   $("#spList").onclick = e => {
+    const adj = e.target.closest("[data-adj]");
+    if (adj) { e.preventDefault(); spOpenAdj(+adj.dataset.adj); return; }
     const card = e.target.closest(".sp-card");
     if (!card) return;
     spPlayOne(+card.dataset.i);
   };
   $("#spPlayAll").onclick = spPlayAll;
   $("#spStopBtn").onclick = spStop;
+
+  /* 切点微调 */
+  $("#spAdjClose").onclick = spCloseAdj;
+  $("#spAdjPlay").onclick = spAdjPlay;
+  $("#spAdjAuto").onclick = () => {
+    const A = SP.adj;
+    if (!A) return;
+    $("#spAdjS").value = A.autoS.toFixed(2);
+    $("#spAdjE").value = A.autoE.toFixed(2);
+    spAdjApply();
+  };
+  ["#spAdjS", "#spAdjE"].forEach(sel => {
+    const inp = $(sel);
+    inp.oninput = () => spAdjApply();
+    inp.onchange = () => spAdjPlay();       // 松手就听一遍，调得对不对当场知道
+  });
 
   $("#spWave").onclick = e => {
     if (!SP.buffer) return;
@@ -2939,7 +3358,10 @@ function bindSplit() {
   window.addEventListener("resize", () => {
     clearTimeout(rzT);
     rzT = setTimeout(() => {
-      if (viewName === "split" && SP.buffer) { spBuildPeaks(); spDrawWave(); }
+      if (viewName === "split" && SP.buffer) {
+        spBuildPeaks(); spDrawWave();
+        if (SP.adj) spDrawAdj();
+      }
     }, 240);
   });
 }
