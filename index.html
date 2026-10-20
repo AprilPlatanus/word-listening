@@ -304,23 +304,43 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:#fff
 .wr-hd .m{font-size:11.5px;color:var(--muted);margin-top:2px}
 .wr-btns{display:flex;gap:6px;flex-wrap:wrap}
 .wr-btns .btn{padding:4px 9px;font-size:11.5px;border-radius:8px}
-.wr-words{display:flex;flex-wrap:wrap;gap:6px;margin:9px 0 10px}
-.wchip{
-  display:inline-flex;align-items:baseline;gap:5px;max-width:100%;
-  border:1px solid var(--line);background:#fff;border-radius:8px;padding:3px 8px;
-  font-size:12px;color:var(--ink-2);cursor:pointer;transition:.15s;
+/* 错词按行列出：红色 = 忘了，黄色 = 模糊 */
+.wr-legend{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:4px 0 12px;
+  font-size:11.5px;color:var(--muted)}
+.wr-legend[hidden]{display:none}
+.wr-legend i{display:inline-flex;align-items:center;gap:6px;font-style:normal}
+.wr-legend i.lg-bad{color:#a8482f}
+.wr-legend i.lg-warn{color:#9c6b1e}
+.wr-legend .sw{width:11px;height:11px;border-radius:3px;flex:none;border:1px solid}
+.wr-legend .sw.bad{background:#eec3ba;border-color:#d59a8d}
+.wr-legend .sw.warn{background:#f2dda9;border-color:#d9b878}
+.wr-legend .lg-tip{margin-left:auto;font-size:11px;color:#b3a898}
+.wr-rows{display:flex;flex-direction:column;gap:6px;margin:8px 0 12px}
+.wrow{
+  display:flex;align-items:baseline;gap:9px;width:100%;text-align:left;
+  padding:7px 10px 7px 9px;border-radius:9px;border:1px solid var(--line-2);
+  border-left:3px solid var(--line);background:#fff;
+  font-size:12.5px;color:var(--ink-2);transition:.15s;
 }
-.wchip:hover{border-color:#d9cbb4;background:var(--gold-l)}
-.wchip b{font-weight:600}
-.wchip i{font-style:normal;font-size:10.5px;color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.wchip.vague{border-color:#e8d9b6;background:#fdf6e6}
-.wchip.forgot{border-color:#eccfca;background:#fdf0ee}
+.wrow:hover{background:#fffdf8;border-color:#d9cbb4}
+.wrow .mk{flex:none;font-size:10.5px;font-weight:600;padding:1px 7px;border-radius:5px;line-height:1.7}
+.wrow b{flex:none;max-width:50%;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wrow .df{flex:1 1 0;min-width:0;font-size:11.5px;color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wrow .sp{flex:none;font-size:10.5px;color:#c9beab;opacity:0;transition:.15s}
+.wrow:hover .sp{opacity:1}
+.wrow.forgot{border-color:#efd3cc;border-left-color:var(--bad);background:#fceeeb}
+.wrow.forgot:hover{background:#fae6e2}
+.wrow.forgot .mk{background:#f5dbd5;color:#a8482f}
+.wrow.vague{border-color:#eddfbe;border-left-color:var(--warn);background:#fdf6e6}
+.wrow.vague:hover{background:#fbf0d8}
+.wrow.vague .mk{background:#f4e3bd;color:#9c6b1e}
 .wrtop{list-style:none;margin:0;padding:0;max-height:min(56vh,520px);overflow:auto}
 .wrtop li{display:flex;align-items:center;gap:8px;padding:6px 7px;border-radius:8px;font-size:12.5px;cursor:pointer}
 .wrtop li:hover{background:var(--gold-l)}
 .wrtop .rk{width:17px;flex:none;font-size:10.5px;color:#bdb2a0;text-align:right;font-variant-numeric:tabular-nums}
 .wrtop .wd{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.wrtop .ct{flex:none;font-size:11px;color:var(--bad);font-weight:600;font-variant-numeric:tabular-nums}
+.wrtop .ct{flex:none;font-size:11px;color:var(--muted);font-weight:600;font-variant-numeric:tabular-nums}
 .wr-empty{text-align:center;padding:44px 16px;color:var(--muted);font-size:12.5px;line-height:1.9}
 .wr-empty h3{margin:0 0 6px;font-size:15px;font-weight:650;color:var(--ink-2)}
 .wr-empty .btn{margin-top:12px}
@@ -512,6 +532,12 @@ body.adj-open #toast{bottom:250px}
   .chips{width:100%;margin-left:0}
   .answer .def{font-size:15px}
   .wr-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  /* 窄屏错词行：单词一行，释义换到第二行，不挤成一团 */
+  .wrow{flex-wrap:wrap;gap:3px 8px}
+  .wrow b{max-width:100%}
+  .wrow .df{flex-basis:100%;white-space:normal;line-height:1.5}
+  .wrow .sp{display:none}
+  .wr-legend .lg-tip{margin-left:0;flex-basis:100%}
   .resume .rs-txt{flex:1 1 120px}
   .resume .rs-txt span{white-space:normal;line-height:1.5}
   .sessbar{flex-wrap:wrap}
@@ -915,6 +941,12 @@ mutual,相互的"></textarea>
         <button class="btn" id="btnWrToLib">全部错词 → 新词库</button>
         <button class="btn" id="btnWrClear">清空记录</button>
       </div>
+
+      <p class="wr-legend" id="wrLegend" hidden>
+        <i class="lg-bad"><span class="sw bad"></span>红色 = 忘了</i>
+        <i class="lg-warn"><span class="sw warn"></span>黄色 = 模糊</i>
+        <span class="lg-tip">点单词可听发音</span>
+      </p>
 
       <div id="wrList"></div>
     </div>
@@ -3242,6 +3274,8 @@ function renderWrongBook() {
   $("#wrTopBadge").textContent = uniq ? "TOP " + Math.min(20, uniq) : "—";
   $("#btnWrExport").disabled = uniq === 0;
   $("#btnWrToLib").disabled = uniq === 0;
+  const legend = $("#wrLegend");
+  if (legend) legend.hidden = !st.marks;   // 没有错词时不显示颜色说明
 
   // 高频错词
   const top = $("#wrTopList");
@@ -3262,10 +3296,15 @@ function renderWrongBook() {
   const rows = records.slice().sort((a, b) => (b.ts || 0) - (a.ts || 0));
   box.innerHTML = rows.map(r => {
     const wrong = r.wrong || [];
-    const chips = wrong.map(it =>
-      '<button class="wchip ' + (it.mark === "forgot" ? "forgot" : "vague") + '" data-w="' + esc(it.w) + '" title="点一下听发音">' +
-      "<b>" + esc(it.w) + "</b>" + (it.d ? "<i>" + esc(it.d) + "</i>" : "") + "</button>"
-    ).join("");
+    const list = wrong.map(it => {
+      const forgot = it.mark === "forgot";
+      return '<button type="button" class="wrow ' + (forgot ? "forgot" : "vague") + '" data-w="' + esc(it.w) + '" title="点一下听发音">' +
+        '<span class="mk">' + (forgot ? "忘了" : "模糊") + "</span>" +
+        "<b>" + esc(it.w) + "</b>" +
+        '<span class="df">' + esc(it.d || "") + "</span>" +
+        '<span class="sp">🔊</span>' +
+      "</button>";
+    }).join("");
     return '<div class="wr-item" data-id="' + r.id + '">' +
       '<div class="wr-hd"><div>' +
         '<div class="t">' + fmtDate(r.ts, true) + ' <span class="badge" style="background:#fdecea;color:#b4453b">' + wrong.length + " 个错词</span></div>" +
@@ -3277,7 +3316,7 @@ function renderWrongBook() {
                         '<button class="btn" data-act="csv">导出 CSV</button>' : '<span class="muted" style="font-size:11.5px;color:var(--ok)">全对 🎉</span>') +
         '<button class="btn" data-act="del">删除</button>' +
       "</div></div>" +
-      (wrong.length ? '<div class="wr-words">' + chips + "</div>" : "") +
+      (wrong.length ? '<div class="wr-rows">' + list + "</div>" : "") +
     "</div>";
   }).join("");
 }
@@ -3326,7 +3365,7 @@ function bindWrongBook() {
     toast("错题记录已清空");
   };
   $("#wrList").onclick = e => {
-    const chip = e.target.closest(".wchip");
+    const chip = e.target.closest(".wrow");
     if (chip) { stopPlayback(); speakOnce(chip.dataset.w); return; }
     const item = e.target.closest(".wr-item");
     if (!item) return;
