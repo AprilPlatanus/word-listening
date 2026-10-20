@@ -227,6 +227,54 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:#fff
 .lv-tip{flex:1;min-width:0;font-size:11px;color:var(--muted)}
 .lv-ft .btn{padding:6px 12px;font-size:12.5px;flex:none}
 
+/* ---- 词表校对 ---- */
+.audit-opt{display:flex;align-items:center;gap:6px;margin-top:11px;padding-top:10px;
+  border-top:1px dashed var(--line-2);font-size:12px;color:var(--ink-2);opacity:.82;
+  cursor:pointer;user-select:none;line-height:1.4}
+.audit-opt input{flex:none;margin:0;width:13px;height:13px;accent-color:#a4762f;cursor:pointer}
+.audit-opt:hover{color:var(--ink-2)}
+
+.audit{position:fixed;inset:0;z-index:92;display:flex;align-items:center;justify-content:center;padding:24px}
+.audit[hidden]{display:none}
+.au-mask{position:absolute;inset:0;background:rgba(46,36,22,.42);backdrop-filter:blur(2px)}
+.au-box{position:relative;width:min(660px,100%);max-height:min(84vh,760px);display:flex;flex-direction:column;
+  background:var(--panel);border:1px solid var(--line-2);border-radius:16px;overflow:hidden;
+  box-shadow:0 26px 64px rgba(60,44,20,.26)}
+.au-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:15px 16px 6px}
+.au-title b{display:block;font-size:15px;font-weight:650;color:var(--ink-2)}
+.au-sub{margin-top:3px;font-size:11.5px;color:var(--muted);line-height:1.55}
+.au-state{display:flex;align-items:center;gap:7px;padding:0 16px 10px;font-size:11.5px;color:var(--muted);min-height:18px}
+.au-spin{flex:none;width:11px;height:11px;border-radius:50%;border:1.5px solid #e6dac4;
+  border-top-color:#a4762f;animation:auSpin .8s linear infinite}
+@keyframes auSpin{to{transform:rotate(360deg)}}
+.au-list{list-style:none;margin:0;padding:0 8px 6px;overflow-y:auto;flex:1;border-top:1px solid var(--line-2)}
+.au-list::-webkit-scrollbar{width:6px}
+.au-list::-webkit-scrollbar-thumb{background:#e2d8c6;border-radius:6px}
+.au-row{display:flex;gap:9px;padding:10px 8px;border-bottom:1px solid #f2ece0;transition:.15s}
+.au-row:last-child{border-bottom:0}
+.au-row.adopted{background:#fbf6ea}
+.au-no{flex:none;width:20px;padding-top:2px;font-size:10.5px;color:#bdb2a0;font-variant-numeric:tabular-nums}
+.au-main{flex:1;min-width:0}
+.au-l1{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.au-tag{flex:none;font-size:10px;font-weight:650;border-radius:5px;padding:1px 6px;letter-spacing:.02em}
+.au-tag.spell{color:#8a5a1e;background:#f7e9d2}
+.au-tag.def{color:#a3402f;background:#fbeae7}
+.au-tag.dup{color:#6b6155;background:#efe9de}
+.au-w{font-size:13px;font-weight:600;color:var(--ink-2);max-width:190px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.au-arrow{color:#c9bda8;font-size:12px}
+.au-in{flex:1 1 130px;min-width:110px;max-width:240px;padding:3px 8px;font-size:12.5px;border-radius:7px}
+.au-l2{display:flex;gap:8px;flex-wrap:wrap;margin-top:5px;font-size:11.5px;color:var(--muted);line-height:1.6}
+.au-ref{color:#8a5a1e}
+.au-acts{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap}
+.au-acts .btn{padding:3px 9px;font-size:11.5px;border-radius:7px}
+.au-list .au-empty{padding:34px 10px;text-align:center;color:var(--muted);font-size:12.5px;border:0}
+.au-ft{display:flex;align-items:center;gap:8px;padding:11px 16px;border-top:1px solid var(--line-2);
+  background:var(--panel-2);flex-wrap:wrap}
+.au-stat{flex:1 1 100%;font-size:11.5px;color:var(--muted);line-height:1.5}
+.au-ft .btn{padding:6px 12px;font-size:12.5px;flex:none}
+.au-ft .au-grow{flex:1 1 auto}
+
 /* ---- 抽测数量 ---- */
 .set label .mini{float:right;margin:-2px 0 0 0;padding:0 8px;line-height:15px;font-size:10.5px}
 .count-row{display:flex;align-items:center;gap:6px;min-width:0}
@@ -469,6 +517,14 @@ body.adj-open #toast{bottom:250px}
   .lv-ft{padding:10px 13px;flex-wrap:wrap}
   .lv-tip{flex:1 1 100%;margin-bottom:2px}
   .lv-ft .btn{flex:1}
+  .audit{padding:10px}
+  .au-box{max-height:90vh;border-radius:14px}
+  .au-hd{padding:13px 13px 6px}
+  .au-state{padding:0 13px 9px}
+  .au-ft{padding:10px 13px}
+  .au-stat{flex:1 1 100%}
+  .au-ft .btn{flex:1}
+  .au-w{max-width:132px}
 }
 
 /* ============ 视图切换 ============ */
@@ -662,6 +718,9 @@ mutual,相互的"></textarea>
         <div class="row-btns">
           <button class="btn gold" id="btnImport">存为新词库</button>
         </div>
+        <label class="audit-opt" title="录入前自动检查拼写、释义与重复词条，联网时再查一遍词典">
+          <input type="checkbox" id="chkAudit" checked>录入前校对拼写与释义
+        </label>
       </div>
 
       <ul class="wordlist" id="wordlist"></ul>
@@ -998,6 +1057,30 @@ mutual,相互的"></textarea>
   </div>
 </div>
 
+<!-- 词表校对：录入前检查拼写 / 释义 / 重复 -->
+<div class="audit" id="auditView" hidden>
+  <div class="au-mask" id="auMask"></div>
+  <div class="au-box" role="dialog" aria-modal="true" aria-labelledby="auTitle">
+    <div class="au-hd">
+      <div class="au-title">
+        <b id="auTitle">词表校对</b>
+        <div class="au-sub" id="auSub">下面这些地方看着不太对，逐条确认即可；不采纳就按你写的导入。</div>
+      </div>
+      <button class="lv-x" id="auClose" type="button" title="关闭">×</button>
+    </div>
+    <div class="au-state" id="auState"></div>
+    <ul class="au-list" id="auList"></ul>
+    <div class="au-ft">
+      <span class="au-stat" id="auStat"></span>
+      <button class="btn" id="auAllKeep" type="button">全部保留</button>
+      <button class="btn" id="auAllFix" type="button">全部改正</button>
+      <button class="btn" id="auCheckDefs" type="button" title="逐词取词典译文，核对释义是否对得上">联网核对释义</button>
+      <button class="btn" id="auCancel" type="button">取消</button>
+      <button class="btn gold" id="auGo" type="button">继续导入</button>
+    </div>
+  </div>
+</div>
+
 <div class="soundbar" id="soundBar">
   <span class="ico">🔇</span>
   <div class="txt">
@@ -1026,7 +1109,7 @@ const LS = {
 };
 const DEFAULTS = {
   engine: "youdao-us", voice: "", rate: 0.9, repeat: 2, gap: 1,
-  delay: 2, shuffle: true, autoNext: false, customUrl: "", count: 0
+  delay: 2, shuffle: true, autoNext: false, customUrl: "", count: 0, audit: true
 };
 
 let cfg = Object.assign({}, DEFAULTS);
@@ -2814,8 +2897,624 @@ function bindWrongBook() {
   $("#btnEndWrongBook").onclick = () => switchView("wrong");
 }
 
+/* =========================================================
+   词表校对：录入前检查拼写 / 释义 / 重复
+   1) 本地：常见错拼对照表 + 形态规则 + 释义格式 + 重复词条（离线、瞬时）
+   2) 在线：LanguageTool 拼写检查（一次请求批量查）、MyMemory 取参考中文释义
+   —> 结果全部以「建议」呈现，改不改由用户决定，不采纳就按原样导入
+   ========================================================= */
+const AUD_FIX = {
+  /* -ie- / -ei- */
+  recieve: "receive", recieves: "receives", recieved: "received", recieving: "receiving",
+  beleive: "believe", beleives: "believes", beleived: "believed", beleiving: "believing",
+  acheive: "achieve", acheives: "achieves", acheived: "achieved", acheivement: "achievement", acheivements: "achievements",
+  decieve: "deceive", decieved: "deceived", percieve: "perceive", percieved: "perceived",
+  freind: "friend", freinds: "friends", freindly: "friendly",
+  foriegn: "foreign", wieght: "weight", theif: "thief", yeild: "yield",
+  /* 双写辅音 */
+  accomodate: "accommodate", accomodation: "accommodation", acommodate: "accommodate", acommodation: "accommodation",
+  occured: "occurred", occuring: "occurring", ocurred: "occurred", occurence: "occurrence", ocurence: "occurrence",
+  occassion: "occasion", ocassion: "occasion",
+  begining: "beginning", writting: "writing", runing: "running", stoped: "stopped",
+  refered: "referred", refering: "referring", prefered: "preferred", preffered: "preferred", transfered: "transferred",
+  commited: "committed", comitted: "committed", commitee: "committee", comittee: "committee",
+  dissapoint: "disappoint", dissapointed: "disappointed", dissappointed: "disappointed", dissapointment: "disappointment",
+  embarass: "embarrass", embarassed: "embarrassed", embarassing: "embarrassing",
+  neccessary: "necessary", necesary: "necessary", neccesary: "necessary",
+  succesful: "successful", sucessful: "successful", successfull: "successful", sucesful: "successful",
+  sucess: "success", succes: "success", succsess: "success",
+  apear: "appear", apeared: "appeared", appeareance: "appearance", apparant: "apparent", appearent: "apparent",
+  adress: "address", adressed: "addressed", agressive: "aggressive", agression: "aggression",
+  ammount: "amount", diferent: "different", diference: "difference", differance: "difference",
+  equiped: "equipped", equippment: "equipment",
+  exagerate: "exaggerate", exellent: "excellent", excellant: "excellent",
+  harrass: "harass", harrassed: "harassed",
+  immediatly: "immediately", imediately: "immediately", immidiate: "immediate", imediate: "immediate",
+  posession: "possession", possesion: "possession",
+  recomend: "recommend", reccomend: "recommend", reccommend: "recommend", recomendation: "recommendation",
+  supose: "suppose", suposed: "supposed", swiming: "swimming",
+  /* 常见错拼 */
+  seperate: "separate", seperated: "separated", seperately: "separately", seperation: "separation", seperating: "separating",
+  definately: "definitely", definate: "definite", definatly: "definitely", definitly: "definitely",
+  enviroment: "environment", enviromental: "environmental",
+  goverment: "government", managment: "management", developement: "development", develope: "develop",
+  independant: "independent", independance: "independence", existance: "existence", existant: "existent",
+  maintenence: "maintenance", maintainance: "maintenance",
+  millenium: "millennium", priviledge: "privilege", publically: "publicly",
+  relevent: "relevant", irrelevent: "irrelevant", religous: "religious",
+  remeber: "remember", rember: "remember", responsability: "responsibility", responsibilty: "responsibility",
+  rythm: "rhythm", secratary: "secretary", secretry: "secretary",
+  similer: "similar", similiar: "similar", sincerly: "sincerely",
+  speach: "speech", stength: "strength", supercede: "supersede",
+  suprise: "surprise", suprised: "surprised", surprize: "surprise",
+  tendancy: "tendency", threshhold: "threshold", tounge: "tongue", twelth: "twelfth", tyrany: "tyranny",
+  unecessary: "unnecessary", unfortunatly: "unfortunately", vaccum: "vacuum", vegtable: "vegetable",
+  vehical: "vehicle", visable: "visible", wether: "whether", wierd: "weird", withdrawl: "withdrawal",
+  knowlege: "knowledge", knowledgable: "knowledgeable", libary: "library",
+  lisence: "license", lisense: "license", grammer: "grammar", happend: "happened",
+  heigth: "height", hierachy: "hierarchy", humourous: "humorous",
+  inteligence: "intelligence", inteligent: "intelligent", intrest: "interest", intresting: "interesting",
+  interupt: "interrupt", labratory: "laboratory", leasure: "leisure", literaly: "literally",
+  marraige: "marriage", mispell: "misspell", mispelled: "misspelled", misterious: "mysterious",
+  noticable: "noticeable", offical: "official", oppurtunity: "opportunity", oppotunity: "opportunity",
+  oposite: "opposite", oposition: "opposition", orginal: "original", outragous: "outrageous",
+  parliment: "parliament", particulary: "particularly", pasenger: "passenger", peice: "piece",
+  permenant: "permanent", permanant: "permanent", personel: "personnel", personell: "personnel",
+  philisophy: "philosophy", physicaly: "physically", potatos: "potatoes", preceed: "precede",
+  presance: "presence", probablity: "probability", proffesional: "professional", profesion: "profession",
+  pronounciation: "pronunciation", propably: "probably", pschology: "psychology",
+  quesion: "question", questionaire: "questionnaire", realy: "really", rediculous: "ridiculous",
+  rehersal: "rehearsal", repitition: "repetition", restarant: "restaurant", restaraunt: "restaurant",
+  scedule: "schedule", schedual: "schedule", sentance: "sentence", severly: "severely",
+  signiture: "signature", sinse: "since", sumary: "summary",
+  temperture: "temperature", temprature: "temperature",
+  tommorow: "tomorrow", tommorrow: "tomorrow", tomorow: "tomorrow", yestarday: "yesterday",
+  throught: "through", univercity: "university", usefull: "useful", usualy: "usually", valuble: "valuable",
+  wich: "which", becuase: "because", becasue: "because", becouse: "because", thier: "their",
+  alot: "a lot", allready: "already", allways: "always", untill: "until",
+  wnat: "want", writen: "written", youself: "yourself",
+  accross: "across", arround: "around", athmosphere: "atmosphere", attendence: "attendance",
+  basicly: "basically", beautifull: "beautiful", benifit: "benefit", bougth: "bought",
+  bussiness: "business", buisness: "business", catagory: "category", cemetry: "cemetery",
+  cheif: "chief", choise: "choice", cieling: "ceiling", circut: "circuit", colum: "column",
+  comparision: "comparison", competion: "competition", completly: "completely",
+  concious: "conscious", confortable: "comfortable", conected: "connected", considerd: "considered",
+  consistant: "consistent", continous: "continuous", contries: "countries", courious: "curious",
+  curiousity: "curiosity", critisize: "criticize", desicion: "decision", delecious: "delicious",
+  discription: "description", dominent: "dominant", dout: "doubt", efficent: "efficient",
+  enought: "enough", enterance: "entrance", excercise: "exercise", exersize: "exercise",
+  experiance: "experience", experianced: "experienced", explaination: "explanation",
+  familar: "familiar", familliar: "familiar", feild: "field", finaly: "finally", foward: "forward",
+  frist: "first", futher: "further", garantee: "guarantee", gaurantee: "guarantee", genral: "general",
+  gratefull: "grateful", guidence: "guidance", heros: "heroes", jewelery: "jewelry",
+  morgage: "mortgage", ninteenth: "nineteenth", nineth: "ninth", ninty: "ninety",
+  payed: "paid", persue: "pursue", presedent: "president", quater: "quarter",
+  reguard: "regard", reguarding: "regarding", useing: "using", makeing: "making", takeing: "taking",
+  comeing: "coming", writeing: "writing", haveing: "having", giveing: "giving", moveing: "moving",
+  leaveing: "leaving", createing: "creating", argueing: "arguing",
+  truely: "truly", arguement: "argument", wonderfull: "wonderful", condusive: "conducive",
+  vocabuary: "vocabulary", vacabulary: "vocabulary", liason: "liaison",
+  acurate: "accurate", acuracy: "accuracy", aquire: "acquire", aquired: "acquired",
+  avaliable: "available", availible: "available", charactor: "character",
+  comunication: "communication", communciation: "communication", conection: "connection",
+  curently: "currently", curent: "current", finantial: "financial", happines: "happiness",
+  langauge: "language", languge: "language", perhapes: "perhaps",
+  reasearch: "research", reserch: "research", secuirty: "security", servise: "service",
+  togather: "together", wihtout: "without", wihout: "without"
+};
+/* 只做精确匹配，不自动派生 -s / -ed / -ing 变体：自动派生会造出 accommodationed 这类假词，
+   宁可少报也不给错建议 */
+
+const AUD = {
+  open: false, list: [], issues: [], onDone: null,
+  online: "idle", refBusy: false, cancel: false, refs: {}
+};
+
+function audSleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function audNorm(s) { return String(s == null ? "" : s).trim().toLowerCase().replace(/\s+/g, " "); }
+function audHasCJK(s) { return CJK.test(String(s == null ? "" : s)); }
+
+/* ---------- 本地检查 ---------- */
+function audLocal(list) {
+  const issues = [];
+  const seen = new Map();
+  list.forEach((raw, i) => {
+    const w = String(raw.w == null ? "" : raw.w).trim();
+    const d = String(raw.d == null ? "" : raw.d).trim();
+    const key = audNorm(w);
+    const add = o => issues.push(Object.assign({ i: i, adopt: false }, o));
+
+    /* 单词 */
+    if (audHasCJK(w)) {
+      add({ type: "spell", word: w, def: d, fixW: w.replace(/[\u3400-\u4dbf\u4e00-\u9fa5]/g, "").trim(),
+        note: "单词里混进了中文，多半是录入时忘加空格" });
+    } else if (AUD_FIX[key]) {
+      add({ type: "spell", word: w, def: d, fixW: AUD_FIX[key], note: "常见拼写错误" });
+    } else if (/\s/.test(w)) {
+      let hit = false;
+      const fixed = w.split(/\s+/).map(t => {
+        const k = audNorm(t).replace(/^[^a-z']+|[^a-z']+$/g, "");
+        if (AUD_FIX[k]) { hit = true; return AUD_FIX[k]; }
+        return t;
+      });
+      if (hit) add({ type: "spell", word: w, def: d, fixW: fixed.join(" "), note: "短语里有拼错的词" });
+    } else if (/(.)\1\1/.test(w)) {
+      add({ type: "spell", word: w, def: d, fixW: w.replace(/(.)\1{2,}/g, "$1$1"),
+        note: "同一个字母连了三下，可能多打了一个" });
+    } else if (/[.,;:!?]$/.test(w) && w.length > 2) {
+      add({ type: "spell", word: w, def: d, fixW: w.replace(/[.,;:!?\s]+$/, ""), note: "单词末尾多了标点" });
+    }
+
+    /* 重复 */
+    if (key) {
+      if (seen.has(key)) {
+        add({ type: "dup", word: w, def: d, mergeTo: seen.get(key),
+          note: "第 " + (seen.get(key) + 1) + " 条已经出现过这个单词" });
+      } else seen.set(key, i);
+    }
+
+    /* 释义 */
+    const onlyPos = /^((n|v|vt|vi|adj|adv|prep|conj|pron|num|art|int|abbr|aux)\.?\s*)+$/i;
+    if (!d) {
+      add({ type: "def", word: w, def: d, fixD: "", note: "这条没有写释义" });
+    } else if (key && audNorm(d) === key) {
+      add({ type: "def", word: w, def: d, fixD: "", note: "释义和单词一模一样，像是复制错了" });
+    } else if (onlyPos.test(d)) {
+      add({ type: "def", word: w, def: d, fixD: "", note: "只有词性，没写中文意思" });
+    } else if (!audHasCJK(d)) {
+      add({ type: "def", word: w, def: d, fixD: "", note: "释义里没有中文，确认一下是不是写成英文了" });
+    }
+  });
+  return issues;
+}
+
+/* ---------- 在线拼写（LanguageTool 公共接口，一次请求查一批） ---------- */
+function audCandidates(list, issues) {
+  const out = [], seen = new Set();
+  list.forEach((raw, i) => {
+    const w = String(raw.w == null ? "" : raw.w).trim();
+    if (!w || /\s/.test(w)) return;
+    if (!/^[a-z][a-z'\-]*$/i.test(w)) return;
+    if (/^[A-Z]/.test(w)) return;            // 专有名词 / 缩写不动
+    if (w.length < 3 || w.length > 24) return;
+    const k = audNorm(w);
+    if (AUD_FIX[k] || seen.has(k)) return;
+    if (issues.some(x => x.i === i && x.type === "spell")) return;
+    seen.add(k);
+    out.push({ i: i, k: k, w: w.toLowerCase() });
+  });
+  return out;
+}
+
+async function audLtChunk(words) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 14000);
+  let res;
+  try {
+    res = await fetch("https://api.languagetool.org/v2/check", {
+      method: "POST",
+      body: new URLSearchParams({ text: words.join("\n"), language: "en-US" }),
+      signal: ctrl.signal
+    });
+  } finally { clearTimeout(timer); }
+  if (!res.ok) throw new Error("http " + res.status);
+  const j = await res.json();
+  const starts = [];
+  let p = 0;
+  words.forEach(w => { starts.push(p); p += w.length + 1; });
+  const out = [];
+  (j.matches || []).forEach(m => {
+    const t1 = m.rule && m.rule.issueType;
+    const t2 = m.type && m.type.typeName;
+    if (t1 !== "misspelling" && t2 !== "UnknownWord") return;
+    let line = -1;
+    for (let k = 0; k < starts.length; k++) {
+      const end = k + 1 < starts.length ? starts[k + 1] - 1 : p;
+      if (m.offset >= starts[k] && m.offset < end) { line = k; break; }
+    }
+    if (line < 0) return;
+    // 必须正好命中这一整行：跨行规则（如 ninety\nnine → ninety-nine）会误判成拼写错误
+    if (m.offset !== starts[line] || m.length !== words[line].length) return;
+    const reps = (m.replacements || [])
+      .map(r => String(r.value || ""))
+      .filter(v => /^[A-Za-z][A-Za-z'\-]{0,23}$/.test(v));
+    if (!reps.length) return;
+    out.push({ line: line, fix: reps[0].toLowerCase() });
+  });
+  return out;
+}
+
+/* 一次请求查一批；如果整批错词太多，接口会用 400 拒掉（ErrorRateTooHigh），
+   这时二分重试，直到每批 ≤8 个词。budget 兜底，避免被限流 */
+async function audLtSafe(cands, acc, box) {
+  if (box.budget <= 0) return false;
+  box.budget--;
+  try {
+    const hits = await audLtChunk(cands.map(c => c.w));
+    hits.forEach(h => { const c = cands[h.line]; if (c) acc.push({ i: c.i, fix: h.fix }); });
+    return true;
+  } catch (e) {
+    if (cands.length <= 8) return false;
+    const mid = Math.ceil(cands.length / 2);
+    const a = await audLtSafe(cands.slice(0, mid), acc, box);
+    const b = await audLtSafe(cands.slice(mid), acc, box);
+    return a || b;
+  }
+}
+
+async function audOnlineSpell(list, issues) {
+  const cands = audCandidates(list, issues);
+  if (!cands.length) return { ok: true, added: 0, none: true };
+
+  const chunks = [];
+  let cur = [], size = 0;
+  cands.forEach(c => {
+    if (size + c.w.length + 1 > 3800 && cur.length) { chunks.push(cur); cur = []; size = 0; }
+    cur.push(c); size += c.w.length + 1;
+  });
+  if (cur.length) chunks.push(cur);
+
+  const CAP = 6;
+  const use = chunks.slice(0, CAP);
+  const box = { budget: 12 };
+  let okCount = 0, added = 0;
+  for (let n = 0; n < use.length; n++) {
+    if (AUD.cancel) break;
+    audPaintState('<i class="au-spin"></i>联网核对拼写 ' + (n + 1) + " / " + use.length + "…");
+    const hits = [];
+    if (await audLtSafe(use[n], hits, box)) okCount++;
+    hits.forEach(h => {
+      if (AUD.issues.some(x => x.i === h.i && x.type === "spell")) return;
+      AUD.issues.push({
+        i: h.i, type: "spell", word: list[h.i].w, def: list[h.i].d,
+        fixW: h.fix, note: "在线词典里查不到这个词", adopt: false
+      });
+      added++;
+    });
+    if (n + 1 < use.length) await audSleep(300);
+  }
+  const more = chunks.length > CAP ? chunks.length - CAP : 0;
+  return { ok: okCount > 0, added: added, skipChunks: more };
+}
+
+/* ---------- 在线中文参考释义（MyMemory） ---------- */
+async function audRef(word) {
+  const k = audNorm(word);
+  if (!k) return "";
+  if (AUD.refs[k] != null) return AUD.refs[k];
+  try {
+    const res = await fetch("https://api.mymemory.translated.net/get?q=" +
+      encodeURIComponent(k) + "&langpair=en%7Czh-CN");
+    if (!res.ok) return "";
+    const j = await res.json();
+    let t = String((j && j.responseData && j.responseData.translatedText) || "");
+    t = t.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<").replace(/&gt;/g, ">").trim();
+    if (!t || !audHasCJK(t)) return "";
+    if (/MYMEMORY WARNING|QUOTA|INVALID|SELECT TWO/i.test(t)) return "";
+    if (t.length > 40) t = t.slice(0, 40) + "…";
+    AUD.refs[k] = t;
+    audSaveRefs();
+    return t;
+  } catch (e) { return ""; }
+}
+function audLoadRefs() {
+  try {
+    const o = JSON.parse(localStorage.getItem("wdt.dict.v1") || "{}");
+    if (o && typeof o === "object") {
+      const keys = Object.keys(o).slice(-600);
+      AUD.refs = {};
+      keys.forEach(k => { if (typeof o[k] === "string") AUD.refs[k] = o[k]; });
+    }
+  } catch (e) { }
+}
+function audSaveRefs() {
+  try {
+    const keys = Object.keys(AUD.refs);
+    if (keys.length > 600) {
+      const keep = keys.slice(-600);
+      const o = {};
+      keep.forEach(k => { o[k] = AUD.refs[k]; });
+      AUD.refs = o;
+    }
+    localStorage.setItem("wdt.dict.v1", JSON.stringify(AUD.refs));
+  } catch (e) { }
+}
+/* 释义与参考译文的汉字重合度（0 = 完全对不上） */
+function audOverlap(def, ref) {
+  const a = new Set(String(def || "").match(/[\u4e00-\u9fa5]/g) || []);
+  const b = Array.from(new Set(String(ref || "").match(/[\u4e00-\u9fa5]/g) || []));
+  if (!b.length) return 1;
+  let hit = 0;
+  b.forEach(ch => { if (a.has(ch)) hit++; });
+  return hit / b.length;
+}
+
+/* ---------- 弹窗 ---------- */
+function audPaintState(html) {
+  const box = $("#auState");
+  if (box) box.innerHTML = html || "";
+}
+function audSort() {
+  const order = { spell: 0, dup: 1, def: 2 };
+  AUD.issues.sort((a, b) => a.i - b.i || (order[a.type] - order[b.type]));
+}
+function audRowHTML(is, n) {
+  const it = AUD.list[is.i] || { w: "", d: "" };
+  const badge = { spell: "拼写", def: "释义", dup: "重复" }[is.type] || "问题";
+  let head;
+  if (is.type === "spell") {
+    head = '<span class="au-w" title="' + esc(it.w) + '">' + esc(it.w) + "</span>" +
+      '<span class="au-arrow">→</span>' +
+      '<input class="au-in" data-k="' + n + '" data-f="w" value="' + esc(is.fixW == null ? "" : is.fixW) + '" spellcheck="false">';
+  } else if (is.type === "def") {
+    head = '<span class="au-w" title="' + esc(it.w) + '">' + esc(it.w) + "</span>" +
+      '<input class="au-in" data-k="' + n + '" data-f="d" value="' +
+      esc(is.fixD == null ? it.d : is.fixD) + '" placeholder="写正确的释义">';
+  } else {
+    head = '<span class="au-w" title="' + esc(it.w) + '">' + esc(it.w) + "</span>" +
+      '<span class="au-arrow">→</span><span class="au-w" style="font-weight:500">与第 ' +
+      (is.mergeTo + 1) + " 条合并</span>";
+  }
+  return '<li class="au-row' + (is.adopt ? " adopted" : "") + '" data-k="' + n + '">' +
+    '<span class="au-no">' + String(is.i + 1).padStart(2, "0") + "</span>" +
+    '<div class="au-main">' +
+      '<div class="au-l1"><span class="au-tag ' + is.type + '">' + badge + "</span>" + head + "</div>" +
+      '<div class="au-l2"><span>' + esc(is.note || "") + "</span>" +
+        (is.ref ? '<span class="au-ref" title="词典给出的中文译文">参考：' + esc(is.ref) + "</span>" : "") +
+        (is.type === "def" && it.d && it.d !== it.w ? "<span>原释义：" + esc(it.d) + "</span>" : "") +
+      "</div>" +
+      '<div class="au-acts">' +
+        '<button class="btn' + (is.adopt ? " gold" : "") + '" data-act="adopt" type="button">' +
+          (is.adopt ? "已采纳" : (is.type === "dup" ? "合并掉这条" : "改成这个")) + "</button>" +
+        '<button class="btn ghost" data-act="keep" type="button">' +
+          (is.adopt ? "改回保留" : "保留原样") + "</button>" +
+        (is.type !== "dup" ? '<button class="btn ghost" data-act="ref" type="button">查参考释义</button>' : "") +
+      "</div>" +
+    "</div></li>";
+}
+function audRender(extra) {
+  const issues = AUD.issues, list = AUD.list;
+  const ul = $("#auList");
+  if (!ul) return;
+  const n = { spell: 0, def: 0, dup: 0 };
+  issues.forEach(x => { if (n[x.type] != null) n[x.type]++; });
+  const adopt = issues.filter(x => x.adopt).length;
+
+  if (!issues.length) {
+    ul.innerHTML = '<li class="au-empty">没有发现明显问题' +
+      (AUD.online === "run" ? "，正在联网再查一遍…" : "（拼写、释义格式、重复都通过了）") + "</li>";
+  } else {
+    ul.innerHTML = issues.map((x, k) => audRowHTML(x, k)).join("");
+  }
+  const parts = [];
+  if (n.spell) parts.push("拼写 " + n.spell);
+  if (n.dup) parts.push("重复 " + n.dup);
+  if (n.def) parts.push("释义 " + n.def);
+  const stat = $("#auStat");
+  if (stat) {
+    stat.textContent = issues.length
+      ? list.length + " 个词 · " + parts.join(" · ") + (adopt ? " · 已采纳 " + adopt : "")
+      : list.length + " 个词" + (extra || "");
+  }
+  const sub = $("#auSub");
+  if (sub && issues.length) {
+    sub.textContent = "下面这些地方看着不太对，逐条确认即可；不采纳就按你写的导入。";
+  }
+  const go = $("#auGo");
+  if (go) go.textContent = "导入 " + list.length + " 个词";
+}
+
+function audOpen(list, onDone) {
+  AUD.list = list.map(x => ({ w: String(x.w == null ? "" : x.w).trim(), d: String(x.d == null ? "" : x.d).trim() }));
+  AUD.issues = audLocal(AUD.list);
+  AUD.onDone = onDone || null;
+  AUD.cancel = false; AUD.refBusy = false;
+  AUD.open = true;
+  $("#auTitle").textContent = "词表校对 · " + AUD.list.length + " 个词";
+  $("#auSub").textContent = AUD.issues.length
+    ? "下面这些地方看着不太对，逐条确认即可；不采纳就按你写的导入。"
+    : "正在核对拼写，稍等一下。";
+  $("#auditView").hidden = false;
+  audSort();
+  audRender();
+  audPaintState('<i class="au-spin"></i>联网核对拼写…');
+
+  const snapshot = AUD.list.map(x => ({ w: x.w, d: x.d }));
+
+  AUD.online = "run";
+  audOnlineSpell(AUD.list, AUD.issues).then(r => {
+    AUD.online = r.ok ? "done" : "fail";
+    audSort();
+    audRender();
+    if (AUD.cancel) return;
+    audPaintState(r.none
+      ? "本地检查完成，这批词都适合离线判断"
+      : (r.ok
+        ? "联网核对完成" + (r.added ? "，新增 " + r.added + " 处拼写问题" : "，没有更多拼写问题") +
+          (r.skipChunks ? '，' + r.skipChunks + " 批太长的没查" : "")
+        : "在线词典连不上，本次只做了本地检查（不影响导入）"));
+    if (!AUD.issues.length) {
+      $("#auSub").textContent = "这 " + snapshot.length +
+        " 个词没有发现拼写或释义问题，直接导入即可；想再确认意思对不对得上，点下面的「联网核对释义」。";
+    }
+  });
+}
+
+function audClose(silent) {
+  AUD.open = false;
+  AUD.cancel = true;
+  const v = $("#auditView");
+  if (v) v.hidden = true;
+  const ul = $("#auList");
+  if (ul) ul.innerHTML = "";
+  if (!silent) audPaintState("");
+}
+
+function audApply() {
+  const list = AUD.list.map(x => ({ w: x.w, d: x.d }));
+  const dead = new Set();
+  const merge = new Map();
+  AUD.issues.forEach(is => {
+    if (!is.adopt) return;
+    if (is.type === "dup") {
+      dead.add(is.i);
+      if (is.mergeTo != null && is.mergeTo !== is.i) {
+        const d2 = list[is.i].d;
+        if (d2 && audNorm(d2) !== audNorm(list[is.mergeTo].d)) {
+          const arr = merge.get(is.mergeTo) || [];
+          if (arr.indexOf(d2) < 0) arr.push(d2);
+          merge.set(is.mergeTo, arr);
+        }
+      }
+      return;
+    }
+    if (is.type === "spell") {
+      const v = String(is.fixW == null ? "" : is.fixW).trim();
+      if (v) list[is.i].w = v;
+      return;
+    }
+    if (is.type === "def") {
+      const v = String(is.fixD == null ? "" : is.fixD).trim();
+      if (v) list[is.i].d = v;      // 没填正确释义就当作没改，别把原释义抹掉
+    }
+  });
+  merge.forEach((defs, t) => {
+    list[t].d = [list[t].d].concat(defs).filter(Boolean).join("；");
+  });
+  return list.filter((_, i) => !dead.has(i));
+}
+
+function audImport() {
+  const out = audApply();
+  const cb = AUD.onDone;
+  audClose();
+  if (cb) cb(out);
+}
+
+/* 联网逐词核对释义（按需触发，注意公共接口的用量限制） */
+async function audCheckDefs() {
+  if (AUD.refBusy) { toast("正在核对，稍等一下"); return; }
+  const rows = [];
+  AUD.list.forEach((it, i) => {
+    const w = String(it.w || "").trim();
+    if (!w || /\s/.test(w)) return;
+    if (!/^[a-zA-Z][a-zA-Z'\-]*$/.test(w)) return;
+    rows.push({ i: i, w: w });
+  });
+  if (!rows.length) { toast("没有可联网核对的单词（词组会自动跳过）"); return; }
+  const use = rows.slice(0, 60);
+  AUD.refBusy = true; AUD.cancel = false;
+  $("#auCheckDefs").disabled = true;
+  let added = 0;
+  for (let n = 0; n < use.length; n++) {
+    if (AUD.cancel) break;
+    audPaintState('<i class="au-spin"></i>核对释义 ' + (n + 1) + " / " + use.length + "…（点「取消」可中断）");
+    const cached = AUD.refs[audNorm(use[n].w)] != null;
+    const ref = await audRef(use[n].w);
+    if (ref) {
+      const it = AUD.list[use[n].i];
+      const keep = AUD.issues.find(x => x.i === use[n].i && x.type === "def");
+      if (keep) { if (!keep.ref) { keep.ref = ref; added++; } }
+      else if (audOverlap(it.d, ref) < 0.2) {
+        AUD.issues.push({
+          i: use[n].i, type: "def", word: it.w, def: it.d, fixD: ref, ref: ref,
+          note: "和词典译文几乎对不上，确认一下是不是配错行了", adopt: false
+        });
+        added++;
+      }
+    }
+    if (n % 6 === 5) { audSort(); audRender(); }
+    if (!cached) await audSleep(110);
+  }
+  AUD.refBusy = false;
+  $("#auCheckDefs").disabled = false;
+  audSort(); audRender();
+  audPaintState(added
+    ? "释义核对完成 · 新发现 " + added + " 处需要确认"
+    : "释义核对完成 · 没发现对不上的地方");
+}
+
+function bindAudit() {
+  const chk = $("#chkAudit");
+  if (chk) {
+    chk.checked = cfg.audit !== false;
+    chk.onchange = e => {
+      cfg.audit = !!e.target.checked;
+      saveCfg();
+      toast(cfg.audit ? "录入前会先校对拼写与释义" : "已关闭自动校对，录入直接保存");
+    };
+  }
+  $("#auClose").onclick = () => audClose();
+  $("#auCancel").onclick = () => audClose();
+  $("#auMask").onclick = () => audClose();
+  $("#auGo").onclick = audImport;
+  $("#auAllKeep").onclick = () => {
+    AUD.issues.forEach(x => { x.adopt = false; });
+    audRender();
+  };
+  $("#auAllFix").onclick = () => {
+    let skipped = 0;
+    AUD.issues.forEach(x => {
+      const empty = (x.type === "spell" && !String(x.fixW == null ? "" : x.fixW).trim()) ||
+        (x.type === "def" && !String(x.fixD == null ? "" : x.fixD).trim());
+      if (empty) { skipped++; return; }
+      x.adopt = true;
+    });
+    audSort(); audRender();
+    if (skipped) toast("有 " + skipped + " 条还没填正确答案，保持原样");
+  };
+  $("#auCheckDefs").onclick = audCheckDefs;
+
+  $("#auList").addEventListener("input", e => {
+    const inp = e.target.closest(".au-in");
+    if (!inp) return;
+    const k = Number(inp.dataset.k);
+    const is = AUD.issues[k];
+    if (!is) return;
+    if (inp.dataset.f === "w") is.fixW = inp.value;
+    else is.fixD = inp.value;
+  });
+  $("#auList").addEventListener("click", async e => {
+    const btn = e.target.closest("button[data-act]");
+    if (!btn) return;
+    const row = btn.closest(".au-row");
+    const k = Number(row && row.dataset.k);
+    const is = AUD.issues[k];
+    if (!is) return;
+    const act = btn.dataset.act;
+    if (act === "adopt") {
+      const inp = row.querySelector(".au-in");
+      if (inp && inp.dataset.f === "w") is.fixW = inp.value;
+      if (inp && inp.dataset.f === "d") is.fixD = inp.value;
+      if ((is.type === "spell" || is.type === "def") && !String(is.type === "spell" ? is.fixW : is.fixD || "").trim()) {
+        toast(is.type === "spell" ? "先把正确的拼写填进输入框" : "先在输入框里写上正确释义，或点「查参考释义」");
+        if (inp) inp.focus();
+        return;
+      }
+      is.adopt = true; audRender(); return;
+    }
+    if (act === "keep") { is.adopt = false; audRender(); return; }
+    if (act === "ref") {
+      btn.disabled = true;
+      btn.textContent = "查询中…";
+      const ref = await audRef(AUD.list[is.i].w);
+      btn.disabled = false;
+      btn.textContent = "查参考释义";
+      if (!ref) { toast("没查到参考译文（可能是网络或该词太生僻）"); return; }
+      is.ref = ref;
+      if (is.type === "def" && !is.adopt) {
+        is.fixD = ref;
+        toast("已把参考释义填进输入框，点「改成这个」生效");
+      }
+      audRender();
+    }
+  });
+}
+
 function bind() {
   /* 声音诊断 */
+  bindAudit();
   $("#btnTestSound").onclick = testSound;
   $("#sbTest").onclick = testSound;
   $("#sbRetry").onclick = () => {
@@ -2870,10 +3569,14 @@ function bind() {
     const list = parseBulk($("#bulk").value);
     if (!list.length) { toast("没有解析到内容"); return; }
     const name = $("#libName").value.trim() || ("词库 " + fmtDate(Date.now()).slice(5) + " " + (libs.length + 1));
-    const lib = createLib(name, list);
-    $("#bulk").value = "";
-    $("#libName").value = "";
-    toast("已存为新词库「" + lib.name + "」· " + list.length + " 词");
+    const go = finalList => {
+      const lib = createLib(name, finalList);
+      $("#bulk").value = "";
+      $("#libName").value = "";
+      toast("已存为新词库「" + lib.name + "」· " + finalList.length + " 词");
+    };
+    if (cfg.audit === false) { go(list); return; }
+    audOpen(list, go);
   };
   $("#btnSample").onclick = () => {
     const lib = loadSample();
@@ -2895,8 +3598,13 @@ function bind() {
         list = parseBulk(rd.result);
       }
       if (!list.length) { toast("文件里没有可用内容"); return; }
-      const lib = createLib(f.name.replace(/\.[^.]+$/, ""), list);
-      toast("已导入为新词库「" + lib.name + "」· " + list.length + " 词");
+      const libName = f.name.replace(/\.[^.]+$/, "");
+      const go = finalList => {
+        const lib = createLib(libName, finalList);
+        toast("已导入为新词库「" + lib.name + "」· " + finalList.length + " 词");
+      };
+      if (cfg.audit === false) { go(list); return; }
+      audOpen(list, go);
     };
     rd.readAsText(f, "utf-8");
     e.target.value = "";
@@ -3020,12 +3728,14 @@ function bind() {
   // 子弹窗优先：预览开着时 Esc 先关预览，别顺手把测试也点了
   document.addEventListener("keydown", e => {
     if (e.key !== "Escape") return;
+    if (AUD.open) { audClose(); return; }
     if (libViewId) { closeLibView(); return; }
     if (SP.adj) { spCloseAdj(); }
   });
 
   document.addEventListener("keydown", e => {
     if (viewName !== "listen") return;
+    if (AUD.open) return;            // 校对弹窗里不触发播放/翻页
     if (libViewId) return;          // 预览弹窗里只走输入框自己的按键
     const tag = (e.target.tagName || "").toLowerCase();
     if (tag === "input" || tag === "textarea" || tag === "select") return;
@@ -4453,6 +5163,7 @@ function bindSplit() {
 
 function init() {
   loadStore();
+  audLoadRefs();
   bind();
   bindSplit();
   bindWrongBook();
