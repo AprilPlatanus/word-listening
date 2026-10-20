@@ -930,10 +930,14 @@ mutual,相互的"></textarea>
       </div>
 
       <div class="wr-stats" id="wrStats">
-        <div class="wr-stat bad"><b id="wrWrong">0</b><span>累计错词（去重）</span></div>
-        <div class="wr-stat"><b id="wrTimes">0</b><span>测试次数</span></div>
-        <div class="wr-stat warn"><b id="wrVague">0</b><span>错词人次</span></div>
-        <div class="wr-stat"><b id="wrLast">—</b><span>最近一次</span></div>
+        <div class="wr-stat bad" title="按单词去重：同一个词错过多次，也只算 1 个">
+          <b id="wrWrong">0</b><span>错词总数（去重）</span></div>
+        <div class="wr-stat" title="做过几轮听测（含提前结束的）">
+          <b id="wrTimes">0</b><span>测试次数</span></div>
+        <div class="wr-stat warn" title="一共点过多少次「模糊 / 忘了」：同一个词错两次会算 2 次">
+          <b id="wrVague">0</b><span>标记次数</span></div>
+        <div class="wr-stat" title="最近一次测试的时间">
+          <b id="wrLast">—</b><span>最近一次</span></div>
       </div>
 
       <div class="wr-acts">
@@ -957,7 +961,7 @@ mutual,相互的"></textarea>
         <span class="badge" id="wrTopBadge">—</span>
       </div>
       <ol class="wrtop" id="wrTopList"></ol>
-      <p class="hint" style="margin-top:10px">点任意词可听发音；「累计错词」按单词去重统计。</p>
+      <p class="hint" style="margin-top:10px">点任意词可听发音。「错词总数」按单词去重，一个词错几次都只算 1 个；「标记次数」按点了多少次算，错两次就是 2 次。</p>
     </aside>
   </section>
 
