@@ -111,7 +111,25 @@ input,select,textarea{font:inherit;color:inherit}
 .lib{padding:16px 16px 10px;position:sticky;top:18px}
 .panel-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .panel-hd h2{margin:0;font-size:13.5px;font-weight:650;letter-spacing:.06em}
+.hd-right{display:flex;align-items:center;gap:6px}
 .badge{font-size:11.5px;color:var(--gold-d);background:var(--gold-l);border-radius:20px;padding:2px 9px;font-weight:600}
+/* 隐藏/显示词库（考试防偷看） */
+.lib-eye{
+  border:1px solid var(--line);background:var(--panel);color:var(--muted);
+  border-radius:999px;padding:2px 9px;font-size:11px;font-family:inherit;
+  cursor:pointer;transition:.16s;white-space:nowrap;
+}
+.lib-eye:hover{background:var(--gold-l);border-color:#e2d0b2;color:var(--gold-d)}
+.lib.masked{padding-bottom:16px}
+.lib.masked .field,.lib.masked #wordlist{display:none}
+.lib-guard{display:none;flex-direction:column;align-items:center;text-align:center;gap:7px;
+  padding:26px 12px 20px;border:1.5px dashed #e2d3b8;border-radius:13px;background:var(--panel-2)}
+.lib.masked .lib-guard{display:flex}
+.lib-guard .gico{color:#bcae97;margin-bottom:1px}
+.lib-guard b{font-size:13px;font-weight:650;color:var(--ink-2)}
+.lib-guard p{margin:0;max-width:230px;font-size:11.5px;line-height:1.7;color:var(--muted)}
+.lib-guard .btn{margin-top:4px;padding:6px 12px;font-size:12px}
+#viewListen .layout.lib-masked{grid-template-columns:288px minmax(0,1fr)}
 .field{margin-bottom:10px}
 .field label{display:block;font-size:11.5px;color:var(--muted);letter-spacing:.05em;margin-bottom:5px}
 textarea,input[type=text],input[type=number],select{
@@ -285,6 +303,7 @@ body.adj-open #toast{bottom:250px}
 
 @media (max-width:900px){
   .layout{grid-template-columns:1fr}
+  #viewListen .layout.lib-masked{grid-template-columns:1fr}
   .lib{position:static;order:2}
   .stage{order:1}
   .settings{grid-template-columns:repeat(3,minmax(0,1fr))}
@@ -440,10 +459,25 @@ body.adj-open #toast{bottom:250px}
   <div class="layout">
 
     <!-- ============ 左：词库 ============ -->
-    <aside class="panel lib">
+    <aside class="panel lib" id="libPanel">
       <div class="panel-hd">
         <h2>词 库</h2>
-        <span class="badge" id="libCount">0 个</span>
+        <div class="hd-right">
+          <span class="badge" id="libCount">0 个</span>
+          <button class="lib-eye" id="btnLibToggle" type="button" aria-pressed="false"
+                  title="隐藏词库（测试时看不到单词与释义）">隐藏</button>
+        </div>
+      </div>
+
+      <!-- 隐藏状态：测试中不显示任何单词，避免照着念 -->
+      <div class="lib-guard" id="libGuard">
+        <svg class="gico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="4.5" y="10" width="15" height="10.5" rx="2.6"/><path d="M8 10V7.2a4 4 0 0 1 8 0V10"/><path d="M12 14.4v2.2"/>
+        </svg>
+        <b>词库已隐藏</b>
+        <p>听测期间不显示单词与释义。</p>
+        <button class="btn" id="btnLibShow" type="button">显示词库</button>
       </div>
 
       <div class="field">
@@ -1558,6 +1592,7 @@ function startSession(onlyWrong) {
   pos = 0; started = true; finished = false; revealed = false;
   marks = {};
   resetRemoteStreak();
+  setLibMasked(true);            // 开测即收词库，防止看答案
   $("#gateStart").classList.add("hide");
   $("#gateEnd").classList.add("hide");
   // 预取前 3 个词的音频，避免第一题等待
@@ -1596,6 +1631,7 @@ function goPrev() {
 function finishSession() {
   started = false; finished = true; playing = false;
   stopPlayback();
+  setLibMasked(false);           // 本轮结束，词库恢复显示，方便复盘
   const c = { know: 0, vague: 0, forgot: 0 };
   Object.keys(marks).forEach(k => { if (c[marks[k]] != null) c[marks[k]]++; });
   $("#fKnow").textContent = c.know;
@@ -1802,6 +1838,7 @@ function loadSample() {
   words = SAMPLE.map(x => ({ w: x.w, d: x.d }));
   saveWords();
   started = false;
+  setLibMasked(false);
   $("#gateStart").classList.remove("hide");
   $("#gateEnd").classList.add("hide");
   paintList(); resetCounter();
@@ -1830,6 +1867,32 @@ function toast(msg) {
   toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
 }
 
+/* ---------------- 词库遮罩 ----------------
+   测试时把左侧词库整块收起来（录入框 + 单词列表），
+   否则学生眼睛一扫就能看到答案，听测没有意义。 */
+let libMasked = false;
+function setLibMasked(on) {
+  const lib = $("#libPanel"), layout = $("#viewListen .layout");
+  if (!lib) return;
+  libMasked = !!on;
+  lib.classList.toggle("masked", libMasked);
+  if (layout) layout.classList.toggle("lib-masked", libMasked);
+  const b = $("#btnLibToggle");
+  if (b) {
+    b.textContent = libMasked ? "显示" : "隐藏";
+    b.title = libMasked ? "显示词库（会看到全部单词与释义）" : "隐藏词库（测试时看不到单词与释义）";
+    b.setAttribute("aria-pressed", libMasked ? "true" : "false");
+  }
+}
+function askLibMask(on) {
+  // 测试进行中想偷看：拦一道确认，别让手滑毁掉一轮测试
+  if (!on && libMasked && started && !finished && words.length) {
+    if (!confirm("显示词库会看到全部单词和释义，确定要看吗？")) return;
+  }
+  setLibMasked(on);
+  if (on) toast("词库已隐藏，专心听音");
+}
+
 function bind() {
   /* 声音诊断 */
   $("#btnTestSound").onclick = testSound;
@@ -1844,6 +1907,8 @@ function bind() {
   $("#sbClose").onclick = hideSoundBar;
 
   /* 词库 */
+  $("#btnLibToggle").onclick = () => askLibMask(!libMasked);
+  $("#btnLibShow").onclick = () => askLibMask(false);
   $("#btnImport").onclick = () => {
     const list = parseBulk($("#bulk").value);
     if (!list.length) { toast("没有解析到内容"); return; }
@@ -1853,6 +1918,7 @@ function bind() {
     $("#gateStart").classList.remove("hide");
     $("#gateEnd").classList.add("hide");
     $("#bulk").value = "";
+    setLibMasked(false);          // 录入完成，先让用户核对词库
     paintList(); paintStage(); resetCounter(); syncGate();
     toast("已导入 " + list.length + " 个单词");
   };
@@ -1862,10 +1928,12 @@ function bind() {
     words = words.concat(list);
     saveWords();
     $("#bulk").value = "";
+    setLibMasked(false);
     paintList(); resetCounter(); syncGate();
     toast("已追加 " + list.length + " 个，共 " + words.length + " 个");
   };
   $("#btnFill").onclick = () => {
+    setLibMasked(false);
     $("#bulk").value = words.map(it => it.w + " " + it.d).join("\n");
     $("#bulk").focus();
     toast("已回填，改完点「导入替换」");
@@ -1899,6 +1967,7 @@ function bind() {
       if (!list.length) { toast("文件里没有可用内容"); return; }
       words = words.concat(list);
       saveWords();
+      setLibMasked(false);
       paintList(); resetCounter(); syncGate();
       toast("已导入 " + list.length + " 个");
     };
@@ -1923,6 +1992,7 @@ function bind() {
       words.splice(i, 1);
       saveWords();
       started = false;
+      setLibMasked(false);
       $("#gateStart").classList.remove("hide");
       $("#gateEnd").classList.add("hide");
       paintList(); paintStage(); resetCounter(); syncGate();
@@ -1939,6 +2009,7 @@ function bind() {
     pos = i;
     started = true;
     revealed = false;
+    setLibMasked(true);          // 进入测试态，词库一并收起
     $("#gateStart").classList.add("hide");
     $("#gateEnd").classList.add("hide");
     enterItem();
