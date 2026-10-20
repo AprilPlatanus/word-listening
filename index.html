@@ -1123,6 +1123,8 @@ let marks = {};          // wordsIndex -> know|vague|forgot
 let started = false, finished = false;
 let revealed = false, playing = false;
 let token = 0;           // 播放序列令牌，用来中断
+let repInFlight = false; // 是否正在等「这一遍读完」
+let lastSoundAt = 0;     // 最近一次真的出声的时间（判断「刚才还有声」）
 let cdTimer = null, nextTimer = null;
 let pendingSession = null;   // 存过但还没恢复的进度快照
 let savedSig = "";           // 保存那一刻的状态签名
@@ -1543,17 +1545,20 @@ let playSeq = 0;
 function playAudioEl(a, onSlow, stallMs) {
   return new Promise((resolve, reject) => {
     const myId = ++playSeq;
+    const ep = audioEpoch;          // 起播时的停播代际，用来识别「被别人掐断」
     a.__playId = myId;
     const isMine = () => a.__playId === myId;
 
     let settled = false, started = false;
     let stallTimer = null, tailTimer = null, slowTimer = null, hardTimer = null;
+    let watchTimer = null, idleTicks = 0, resumeCount = 0;
 
     const settle = (err) => {
       if (settled) return;
       settled = true;
       clearTimeout(stallTimer); clearTimeout(tailTimer);
       clearTimeout(slowTimer); clearTimeout(hardTimer);
+      clearInterval(watchTimer);
       if (!isMine()) { resolve(); return; }   // 已被新一轮接管：安静退出，别去动元素
       a.onended = null; a.onerror = null; a.onplaying = null;
       if (err) {
@@ -1568,6 +1573,7 @@ function playAudioEl(a, onSlow, stallMs) {
     const markStarted = () => {
       if (started) return;
       started = true;
+      lastSoundAt = Date.now();
       clearTimeout(stallTimer);
       clearTimeout(slowTimer);
       const rate = Math.max(0.5, Number(cfg.rate) || 1);
@@ -1596,6 +1602,29 @@ function playAudioEl(a, onSlow, stallMs) {
 
     // 绝对上限，保证 Promise 一定会结束，不留悬空 await
     hardTimer = setTimeout(() => settle(), 30000);
+
+    /* 断音看门狗：音频元素在播到一半时被外部暂停（点了页面按钮、抢走音频焦点、
+       蓝牙耳机断开、系统音乐打断…），浏览器不会派发 ended / error，
+       这里会一直等到 tailTimer（约 5 秒）才有反应——表现出来就是
+       「正在播放 1/2 遍」卡住、不再出声、也不揭晓释义。
+       所以自己盯一眼：出声之后被暂停就接着放；真是被我们主动停播（换题／结束）
+       就安静收尾，绝不把声音又放出来。 */
+    watchTimer = setInterval(() => {
+      if (settled) { clearInterval(watchTimer); return; }
+      if (!started) return;                       // 还没出声：交给上面的起播看门狗
+      if (ep !== audioEpoch) { settle(); return; } // 我们自己停的，别再自动续播
+      if (!isMine()) { settle(); return; }
+      const dur = (isFinite(a.duration) && a.duration > 0) ? a.duration : 0;
+      const atEnd = a.ended || (dur > 0.5 && a.currentTime >= dur - 0.25);
+      if (!a.paused || atEnd) { idleTicks = 0; if (!a.paused) lastSoundAt = Date.now(); return; }
+      if (++idleTicks < 2) return;                 // 约 400ms，避免误判瞬间的空档
+      idleTicks = 0;
+      if (++resumeCount > 10) { settle(); return; } // 一直被掐（音频焦点被别的程序占着）：别死磕
+      try {
+        const p = a.play();                       // 被打断就接着放，用户只听见极短的顿挫
+        if (p && typeof p.catch === "function") p.catch(() => settle());
+      } catch (e) { settle(); }
+    }, 200);
 
     if (a.error) { try { a.load(); } catch (e) { } }
     try { a.pause(); } catch (e) { }
@@ -1765,6 +1794,7 @@ function speakUtterance(text, voice, watchdogMs, trustBusy, gen) {
     const trustIdle = trustBusy !== false;
     const rate = Math.min(2, Math.max(0.5, Number(cfg.rate) || 1));
     let done = false, started = false, startAt = 0, startTimer = null, endTimer = null;
+    let cutTimer = null, idleTicks = 0;
 
     const u = new SpeechSynthesisUtterance(text);
     u.rate = rate; u.pitch = 1; u.volume = 1;
@@ -1775,7 +1805,7 @@ function speakUtterance(text, voice, watchdogMs, trustBusy, gen) {
     const fin = (ok, reason) => {
       if (done) return;
       done = true;
-      clearTimeout(startTimer); clearTimeout(endTimer);
+      clearTimeout(startTimer); clearTimeout(endTimer); clearInterval(cutTimer);
       u.onstart = u.onend = u.onerror = null;
       if (liveUtterance === u) liveUtterance = null;
       resolve({ ok, reason: reason || "", voice: voice ? voice.name : "(lang)" });
@@ -1785,12 +1815,31 @@ function speakUtterance(text, voice, watchdogMs, trustBusy, gen) {
       clearTimeout(endTimer);
       endTimer = setTimeout(() => fin(true), est);
     };
+    /* 断音看门狗：出声之后引擎突然不再说话（点了页面按钮、系统抢走音频焦点、
+       语音队列被外部清掉…），onend 往往不会来，只能干等到 endGuard（两三秒）。
+       表现同样是「正在播放」卡住、没声、也不揭晓。这里盯住它：
+       被暂停就 resume，真的静下来了就按读完处理，让整轮继续走。 */
+    const armCutGuard = () => {
+      clearInterval(cutTimer);
+      cutTimer = setInterval(() => {
+        if (done) { clearInterval(cutTimer); return; }
+        if (gen != null && gen !== speakGen) { fin(false, "stale"); return; }
+        let busy = false, paused = false;
+        try { busy = !!synth.speaking || !!synth.pending; paused = !!synth.paused; } catch (e) { }
+        if (paused) { try { synth.resume(); } catch (e) { } return; }   // 被暂停：恢复，不算断
+        if (busy) { idleTicks = 0; lastSoundAt = Date.now(); return; }
+        if (++idleTicks < 3) return;                                     // 约 450ms 完全没动静
+        fin(true, "cut");
+      }, 150);
+    };
 
     u.onstart = () => {
       started = true;
       startAt = Date.now();
+      lastSoundAt = Date.now();
       clearTimeout(startTimer);
       armEndGuard();
+      armCutGuard();
     };
     u.onend = () => {
       const dur = startAt ? Date.now() - startAt : 0;
@@ -1811,7 +1860,7 @@ function speakUtterance(text, voice, watchdogMs, trustBusy, gen) {
       // 只有当「说这句之前队列是空的」时，synth.speaking 才可信。
       // 队列本来就卡着的话，busy=false 才有意义，否则会把卡死误判成正在播。
       if (busy && trustIdle) {   // 引擎说在播：不重试，否则会读两遍
-        started = true; startAt = Date.now(); armEndGuard(); return;
+        started = true; startAt = Date.now(); armEndGuard(); armCutGuard(); return;
       }
       fin(false, "nostart");
     }, watchdogMs || 2200);
@@ -1844,13 +1893,15 @@ async function webSpeak(text) {
   await sleep(40);
 
   const cands = voiceCandidates();
-  let nostart = 0, tried = [];
+  let nostart = 0, tried = [], cutRetry = false;
   for (let i = 0; i < cands.length && i < 3; i++) {
     const v = cands[i];
     tried.push(v ? v.name : "默认");
     const r = await speakUtterance(text, v, i === 0 ? 2200 : 2800, !busyBefore, gen);
     if (r.ok) { speechDiag = ""; return true; }
     if (r.reason === "stale") return "stale";      // 这一轮已被新的播放顶掉，别再试
+    // 读到一半被外部掐断（只读了一遍的设置下会整词都没听全）：同一音色补一遍
+    if (r.reason === "cut" && !cutRetry) { cutRetry = true; i--; continue; }
     if (r.reason === "nostart") nostart++;
     if (nostart >= 2) break;                           // 两次都没起播：引擎坏了
     try { synth.cancel(); } catch (e) { }
@@ -2104,8 +2155,13 @@ function clearCountdown() {
 function clearNextTimer() {
   if (nextTimer) { clearTimeout(nextTimer); nextTimer = null; }
 }
+/* 停播代际：每次 stopAllAudio +1。
+   还在等的播放器靠它区分「是我自己把声音停了」和「声音被别人掐断了」——
+   前者必须安静退出，后者要自动接上。 */
+let audioEpoch = 0;
 function stopAllAudio() {
   speakGen++;        // 停播＝作废所有还在等待中的发音轮次
+  audioEpoch++;      // 告诉在等的播放器：这次是我主动停的，别再自动续播
   try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch (e) { }
   audioCache.forEach(a => { try { a.pause(); a.currentTime = 0; } catch (e) { } });
 }
@@ -2113,9 +2169,21 @@ function stopAllAudio() {
 function stopPlayback() {
   token++;
   playing = false;
+  repInFlight = false;
   clearCountdown();
   stopAllAudio();
   paintPlayState();
+}
+
+/** 此刻是不是真的有声音正在出来（在线音频或系统语音都算） */
+function soundLive() {
+  try {
+    const s = window.speechSynthesis;
+    if (s && s.speaking && !s.paused) return true;
+  } catch (e) { }
+  let live = false;
+  audioCache.forEach(a => { if (!a.paused && !a.ended && a.currentTime > 0) live = true; });
+  return live;
 }
 
 async function playSequence(autoReveal) {
@@ -2139,13 +2207,16 @@ async function playSequence(autoReveal) {
   for (let i = 0; i < total; i++) {
     if (my !== token) return;
     paintDots(i, total);
+    repInFlight = true;
     await speakOnce(item.w);
+    repInFlight = false;
     if (my !== token) return;
     if (i < total - 1 && gap > 0) {
       await sleep(gap * 1000);
       if (my !== token) return;
     }
   }
+  repInFlight = false;
   paintDots(-1, total);
   playing = false;
   paintPlayState();
@@ -2352,11 +2423,23 @@ function sessionSnapshot() {
 function saveSession(silent) {
   const snap = sessionSnapshot();
   if (!snap) { if (!silent) toast("还没有开始测试，没有进度可存"); return false; }
+  // 保存只是写本地存储 + 更新状态灯，绝不能碰播放
+  const wasPlaying = playing, wasInRep = repInFlight, tok = token, savedRecently = Date.now() - lastSoundAt < 1500;
   try { localStorage.setItem(LS.session, JSON.stringify(snap)); }
   catch (e) { if (!silent) toast("本地存储已满，保存失败，建议先导出词库"); return false; }
   savedSig = sessSig(); savedAt = snap.ts;
   paintSessBar();
   if (!silent) toast("已保存 · 第 " + (pos + 1) + "/" + queue.length + " 个，下次打开可接着做");
+  /* 有些浏览器/设备上，点一下按钮会把声音当场掐掉（音频焦点被抢、语音队列被清），
+     之后页面就卡在「正在播放 N/M 遍」不动，看起来像整轮测试停了。
+     存完 0.7 秒复查一次：原本在出声、现在彻底没声、这一遍还没读完 → 直接重放这个词。 */
+  if (wasPlaying && wasInRep && savedRecently) {
+    setTimeout(() => {
+      if (token !== tok || !playing || !repInFlight || soundLive()) return;
+      playSequence(true);
+      toast("已保存 · 声音刚才被打断了，已接着放");
+    }, 700);
+  }
   return true;
 }
 function readSession() {
