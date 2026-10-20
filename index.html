@@ -377,6 +377,8 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:#fff
 .switch input:checked{background:var(--gold)}
 .switch input::after{content:"";position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 2px rgba(0,0,0,.18)}
 .switch input:checked::after{left:17px}
+/* 揭晓后的节奏已固定为 1 秒，不再给开关，用一行小字说明 */
+#revealStayHint{grid-column:span 4;margin:0;padding-top:15px;font-size:12px}
 
 /* 舞台 */
 .playarea{
@@ -499,6 +501,8 @@ body.adj-open #toast{bottom:250px}
   .wr-main{order:1}
   .wr-side{position:static;order:2}
   .wrtop{max-height:none}
+  /* 窄屏只剩 3 列：提示独占一行，别撑出隐藏列 */
+  #revealStayHint{grid-column:1 / -1;padding-top:3px}
 }
 @media (max-width:520px){
   .settings{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -805,7 +809,7 @@ mutual,相互的"></textarea>
           </div>
         </div>
         <label class="switch" title="开启后每轮顺序随机"><input type="checkbox" id="chkShuffle">打乱顺序</label>
-        <label class="switch" title="揭晓后停留 4 秒自动跳下一题"><input type="checkbox" id="chkAutoNext">自动下一题</label>
+        <p class="hint" id="revealStayHint">释义停留 <b>1</b> 秒后自动进入下一题并播放</p>
       </div>
 
       <!-- 播放区 -->
@@ -1109,8 +1113,10 @@ const LS = {
 };
 const DEFAULTS = {
   engine: "youdao-us", voice: "", rate: 0.9, repeat: 2, gap: 1,
-  delay: 2, shuffle: true, autoNext: false, customUrl: "", count: 0, audit: true
+  delay: 2, shuffle: true, customUrl: "", count: 0, audit: true
 };
+/* 揭晓后统一停留 1 秒：释义消失 → 自动进入下一题并播发音（末题则直接结算） */
+const REVEAL_STAY_MS = 1000;
 
 let cfg = Object.assign({}, DEFAULTS);
 let libs = [];           // 已保存词库 [{id,name,words,createdAt}]
@@ -1172,14 +1178,15 @@ function loadStore() {
   activeId = libs.some(l => l.id === saved) ? saved : libs[0].id;
   words = activeLib().words;
 
-  // 设置：老配置没有 v 字段时，把「打乱顺序」升级为默认开启
+  // 设置：老配置迁移（v3 起「打乱顺序」默认开；揭晓后的停留时长固定为 1 秒，不再有开关）
   try {
     const c = JSON.parse(localStorage.getItem(LS.cfg) || "{}");
-    const oldVer = !c || c.v !== 2;
+    const oldVer = !c || c.v !== 3;
     cfg = Object.assign({}, DEFAULTS, c || {});
     if (oldVer) cfg.shuffle = true;
-    cfg.v = 2;
-  } catch (e) { cfg = Object.assign({}, DEFAULTS, { v: 2 }); }
+    delete cfg.autoNext;          // 旧字段：节奏已统一，留着只会误导
+    cfg.v = 3;
+  } catch (e) { cfg = Object.assign({}, DEFAULTS, { v: 3 }); }
 
   // 错题记录
   try {
@@ -2221,6 +2228,7 @@ async function playSequence(autoReveal) {
   playing = false;
   paintPlayState();
   if (autoReveal !== false && !revealed) startCountdown();
+  else if (my === token) paintStage();   // 揭晓后重听：念完把状态文字从「正在播放」换回来
 }
 
 function startCountdown() {
@@ -2253,10 +2261,13 @@ function doReveal() {
   clearCountdown();
   paintStage();
   preloadNext();
-  if (cfg.autoNext) {
-    clearNextTimer();
-    nextTimer = setTimeout(() => { if (!$("#gateEnd").classList.contains("hide")) return; goNext(); }, 4000);
-  }
+  // 统一节奏：释义只停 1 秒，随后自动进入下一题并播放（想回看用「← 上一题」）
+  clearNextTimer();
+  nextTimer = setTimeout(() => {
+    if (!$("#gateEnd").classList.contains("hide")) return;            // 已经结算
+    if (!revealed) return;                                            // 期间换了题
+    goNext();
+  }, REVEAL_STAY_MS);
 }
 
 /* ---------------- 会话 ---------------- */
@@ -2616,7 +2627,7 @@ function paintStage() {
       $("#status").innerHTML = "⚠ 本轮没有音频 · 已直接显示拼写";
     } else {
       $("#status").textContent = total
-        ? (revealed ? "释义已显示 · 可再听一遍或继续" : "点圆形按钮再听一遍")
+        ? (revealed ? (nextTimer ? "释义已显示 · 1 秒后进入下一题" : "释义已显示 · 点下一题继续") : "点圆形按钮再听一遍")
         : "点击开始，听发音后回忆释义";
     }
   }
@@ -2661,12 +2672,13 @@ function syncSettingsUI() {
   $("#inpRate").value = cfg.rate;
   $("#inpCount").value = Number(cfg.count) || 0;
   $("#chkShuffle").checked = !!cfg.shuffle;
-  $("#chkAutoNext").checked = !!cfg.autoNext;
   $("#voiceWrap").hidden = cfg.engine !== "web";
   $("#customWrap").hidden = cfg.engine !== "custom";
   $("#inpCustom").value = cfg.customUrl || "";
   fillVoiceSelect();
   $("#delayTxt").textContent = String(Number(cfg.delay) || 0);
+  const stay = $("#revealStayHint");
+  if (stay) stay.innerHTML = "释义停留 <b>" + (REVEAL_STAY_MS / 1000) + "</b> 秒后自动进入下一题并播放";
   paintCountTip();
 }
 /** 抽测数量提示：库里有几个、这轮会抽几个 */
@@ -2784,6 +2796,7 @@ function syncGate() {
     let s = "「" + (activeLib() || {}).name + "」共 " + words.length + " 个单词";
     if (n > 0 && n < words.length) s += "，本轮抽 " + n + " 个";
     s += cfg.shuffle ? " · 顺序已打乱。" : " · 按词库顺序。";
+    s += "释义停 " + (REVEAL_STAY_MS / 1000) + " 秒后自动进入下一个。";
     desc.textContent = s;
   }
   paintCountTip();
@@ -3764,7 +3777,6 @@ function bind() {
   };
   $("#inpCustom").onchange = e => { cfg.customUrl = e.target.value.trim(); saveCfg(); };
   $("#chkShuffle").onchange = e => { cfg.shuffle = e.target.checked; saveCfg(); syncGate(); };
-  $("#chkAutoNext").onchange = e => { cfg.autoNext = e.target.checked; saveCfg(); };
 
   /* 播放控制（只有圆形按钮和空格键，别再加重复的「重播」） */
   $("#btnPlay").onclick = () => {
