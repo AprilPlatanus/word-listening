@@ -493,7 +493,7 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:#fff
 }
 .gate.hide{display:none}
 .gate h3{margin:0;font-size:17px;font-weight:650}
-.gate p{margin:0;font-size:12.5px;color:var(--muted);max-width:380px;line-height:1.7}
+.gate p{margin:0;font-size:12.5px;color:var(--muted);max-width:380px;line-height:1.7;text-wrap:balance}
 .gate .btn{margin-top:6px}
 .steps{display:flex;gap:8px;margin:4px 0 2px;flex-wrap:wrap;justify-content:center}
 .steps span{
@@ -706,8 +706,6 @@ body.adj-open #toast{bottom:250px}
       <button data-view="split" type="button" hidden>音频切分</button>
     </div>
     <div class="top-actions">
-      <button class="btn" id="btnSample">示例词库</button>
-      <button class="btn" id="btnExport">导出 Excel</button>
       <label class="btn">导入文件<input type="file" id="fileImport" accept=".xlsx,.json,.txt,.csv" hidden></label>
       <button class="btn ghost" id="btnNatural">NaturalReader ↗</button>
       <a class="btn ghost" href="https://github.com/AprilPlatanus/word-listening" target="_blank" rel="noopener" title="开源仓库 · 欢迎 Star">GitHub ↗</a>
@@ -899,7 +897,7 @@ mutual,相互的"></textarea>
         <div class="gate" id="gateStart">
           <h3>准备好了吗</h3>
           <div class="steps"><span>① 听发音</span><span>② 心里回忆</span><span>③ 自动揭晓</span></div>
-          <p id="gateDesc">先把单词粘进左侧词库，或直接用示例词库试一下。</p>
+          <p id="gateDesc">词库还是空的：把单词粘到左边存好，或点右上「导入文件」。</p>
           <button class="btn gold" id="btnStart">开始听测</button>
         </div>
 
@@ -3169,6 +3167,8 @@ function paintVoiceHint(state) {
 }
 
 /* ---------------- 交互绑定 ---------------- */
+/* 示例词库数据：入口（顶部「示例词库」按钮 + 起始遮罩的兜底）已下线，
+   数据先留着，将来要恢复时把入口加回即可，loadSample() 仍可用 */
 const SAMPLE = [
   { w: "abandon", d: "放弃；抛弃；遗弃" },
   { w: "vanish", d: "消失；突然不见" },
@@ -3200,8 +3200,8 @@ function syncGate() {
   const btn = $("#btnStart"), desc = $("#gateDesc");
   if (!btn) return;
   if (!words.length) {
-    btn.textContent = "用示例词库开始";
-    desc.textContent = "这个词库还是空的。可以先用示例词库试一轮，或把单词粘到左边点「存为新词库」。";
+    btn.textContent = "开始听测";
+    desc.textContent = "词库还是空的：把单词粘到左边存好，或点右上「导入文件」。";
   } else {
     btn.textContent = "开始听测";
     const n = Number(cfg.count) || 0;
@@ -4145,12 +4145,6 @@ function bind() {
     if (cfg.audit === false) { go(list); return; }
     audOpen(list, go);
   };
-  $("#btnSample").onclick = () => {
-    const lib = loadSample();
-    toast("已切到「" + lib.name + "」· " + lib.words.length + " 词，点「开始听测」");
-  };
-  $("#btnExport").onclick = e => exportActiveLib(!!e.shiftKey);
-  $("#btnExport").title = "导出为 Excel 表格（按住 Shift 导出 JSON 备份）";
   $("#fileImport").onchange = e => {
     const f = e.target.files && e.target.files[0];
     e.target.value = "";               // 允许连续导入同一个文件
@@ -4284,7 +4278,7 @@ function bind() {
   $("#btnPrev").onclick = goPrev;
 
   $("#btnStart").onclick = () => {
-    if (!words.length) loadSample();
+    if (!words.length) { toast("词库还是空的：先在左边粘贴单词并存为新词库"); return; }
     startSession(false);
   };
   $("#btnRestart").onclick = () => startSession(false);
