@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>单词听测 · 听音回忆</title>
-<meta name="description" content="只给声音、不给拼写：听完发音后有 2 秒空白让你回忆，然后自动揭晓单词与释义。另附音频切分：上传录音 + 原文，自动整理去重词表并把音频按词切开，点词即读。单文件、零依赖、可离线使用。">
+<meta name="description" content="只给声音、不给拼写：听完发音后有 2 秒空白让你回忆，然后自动揭晓单词与释义。支持多词库、错题本、录入校对与 Excel 导出。单文件、零依赖、可离线使用。">
 <meta name="author" content="AprilPlatanus">
 <meta name="theme-color" content="#f6f2ea">
 <meta property="og:type" content="website">
@@ -652,13 +652,13 @@ body.adj-open #toast{bottom:250px}
       </div>
       <div>
         <h1>单词听测</h1>
-        <p>听音回忆 · 录音切分</p>
+        <p>听音回忆 · 错题归档</p>
       </div>
     </div>
     <div class="tabs" id="tabs">
       <button class="on" data-view="listen" type="button">单词听测</button>
       <button data-view="wrong" type="button">错题本</button>
-      <button data-view="split" type="button">音频切分</button>
+      <button data-view="split" type="button" hidden>音频切分</button>
     </div>
     <div class="top-actions">
       <button class="btn" id="btnSample">示例词库</button>
@@ -1117,6 +1117,8 @@ const DEFAULTS = {
 };
 /* 揭晓后统一停留 1 秒：释义消失 → 自动进入下一题并播发音（末题则直接结算） */
 const REVEAL_STAY_MS = 1000;
+/* 功能开关：音频切分暂不对用户开放（代码仍保留在页面里，确定要用时把 split 改成 true） */
+const FEATURES = { split: false };
 
 let cfg = Object.assign({}, DEFAULTS);
 let libs = [];           // 已保存词库 [{id,name,words,createdAt}]
@@ -5447,6 +5449,7 @@ const SP_DEMO = "The old librarian looked after the reading room for thirty year
 /* ---------- 视图切换 ---------- */
 let viewName = "listen";
 function switchView(name) {
+  if (name === "split" && !FEATURES.split) return;   // 切分页暂未对外开放
   if (!name || name === viewName) return;
   viewName = name;
   $$("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.view === name));
@@ -5627,8 +5630,26 @@ function bindSplit() {
   });
 }
 
+/* 按功能开关整理入口：关掉的页签连按钮带页面一起收起，也切不过去 */
+function applyFeatures() {
+  const on = !!FEATURES.split;
+  const tab = $('#tabs button[data-view="split"]');
+  if (tab) tab.hidden = !on;
+  if (!on) {
+    const v = $("#viewSplit");
+    if (v) v.hidden = true;
+    if (viewName === "split") {          // 兜底：别把人留在已经下线的页签里
+      viewName = "listen";
+      $("#viewListen").hidden = false;
+      $("#viewWrong").hidden = true;
+      $$("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.view === "listen"));
+    }
+  }
+}
+
 function init() {
   loadStore();
+  applyFeatures();
   audLoadRefs();
   bind();
   bindSplit();
