@@ -994,6 +994,27 @@ function systemVoiceUsable() {
 }
 
 /**
+ * 判断这台浏览器有没有「能出声」的系统音色，但先等音色加载完。
+ *
+ * getVoices() 是异步填充的：页面刚打开时返回 []，300ms～1s 后才变成上百个。
+ * 早先直接用同步版判断，第一题就很容易撞进「还没加载」的窗口，被误判成
+ * 「这台浏览器没有可用的系统语音」——于是跳过系统语音、还弹一句错的提示，
+ * 而实际上 Safari / Edge 本机音色一大把，完全能读。Chrome 和 Edge 都会中招。
+ *
+ * 返回：
+ *   "local"        有本机（离线）英文音色 —— 系统语音可用
+ *   "online-only"  只有需联网的音色（Google … / Microsoft … Online (Natural)）—— 国内基本没声
+ *   "none"         压根没有英文音色（没装语音包，或浏览器不给）
+ */
+async function systemVoiceState(waitMs) {
+  if (!speechSupported()) return "none";
+  if (!voiceList().length) await voicesReady(waitMs || 1500);
+  const all = voiceList().filter(v => /^en(-|_|$)/i.test(v.lang));
+  if (!all.length) return "none";
+  return all.some(v => !isOnlineVoice(v)) ? "local" : "online-only";
+}
+
+/**
  * 等音色加载完。
  * Chrome 的音色是异步加载的：getVoices() 还是空数组时就 speak()，
  * 这个 utterance 会被直接丢掉——不报错、不发声、onstart / onend 全都不触发。
@@ -1077,10 +1098,20 @@ let liveUtterance = null;
  *  - 没收到 onstart 但引擎说自己在说话 → 当真在播，只等它结束（否则会重复朗读）；
  *  - onstart、onend 几乎同时到（<70ms）而词又不短 → 引擎假读完，算失败。
  */
-function speakUtterance(text, voice, watchdogMs, trustBusy) {
+/**
+ * 「说话代际」。
+ * 每开始一轮播放就 +1。一轮发音要在等音色、等队列之后才真正调到 speak()，
+ * 这段时间里如果用户又点了播放（或自动播放和手动点击撞在一起），
+ * 旧的那一轮醒来后照样会 speak 一次 —— 于是同一个词被读两遍。
+ * 所以在真正出声前比一下代际，过期的直接放弃。
+ */
+let speakGen = 0;
+
+function speakUtterance(text, voice, watchdogMs, trustBusy, gen) {
   return new Promise(resolve => {
     const synth = window.speechSynthesis;
     if (!synth) { resolve({ ok: false, reason: "unsupported" }); return; }
+    if (gen != null && gen !== speakGen) { resolve({ ok: false, reason: "stale" }); return; }
     const trustIdle = trustBusy !== false;
     const rate = Math.min(2, Math.max(0.5, Number(cfg.rate) || 1));
     let done = false, started = false, startAt = 0, startTimer = null, endTimer = null;
@@ -1135,6 +1166,8 @@ function speakUtterance(text, voice, watchdogMs, trustBusy) {
       fin(false, "nostart");
     }, watchdogMs || 2200);
 
+    // 到这里可能已经过了几百毫秒（等音色加载），再确认一次这一轮还没被顶掉
+    if (gen != null && gen !== speakGen) { fin(false, "stale"); return; }
     try {
       if (synth.paused) synth.resume();   // 被暂停过的引擎，不 resume 会一直不出声
       synth.speak(u);
@@ -1149,6 +1182,7 @@ function speakUtterance(text, voice, watchdogMs, trustBusy) {
 async function webSpeak(text) {
   if (!speechSupported()) { speechDiag = "浏览器不支持语音合成"; return false; }
   const synth = window.speechSynthesis;
+  const gen = ++speakGen;
   const voices = await voicesReady(1500);
   const localCount = voices.filter(v => /^en/i.test(v.lang) && !isOnlineVoice(v)).length;
 
@@ -1164,8 +1198,9 @@ async function webSpeak(text) {
   for (let i = 0; i < cands.length && i < 3; i++) {
     const v = cands[i];
     tried.push(v ? v.name : "默认");
-    const r = await speakUtterance(text, v, i === 0 ? 2200 : 2800, !busyBefore);
+    const r = await speakUtterance(text, v, i === 0 ? 2200 : 2800, !busyBefore, gen);
     if (r.ok) { speechDiag = ""; return true; }
+    if (r.reason === "stale") return "stale";      // 这一轮已被新的播放顶掉，别再试
     if (r.reason === "nostart") nostart++;
     if (nostart >= 2) break;                           // 两次都没起播：引擎坏了
     try { synth.cancel(); } catch (e) { }
@@ -1219,9 +1254,14 @@ function hideSoundBar() {
 /** 两种发音都没出声时，给出可执行的下一步，而不是静默跳过 */
 function noteSilent(via) {
   if (via === "nofallback") {
-    showSoundBar("在线发音失败，这台浏览器没有可用的系统语音",
-      "Chrome 当前只提供「需联网」的音色（Google …），国内连不上就等于没声，所以无法兜底。" +
-      "三种解法：① 用 Safari / Edge；② 在系统设置里安装英文语音包后重启 Chrome；③ 联网正常的网络环境下用「有道美音」。");
+    showSoundBar("在线发音失败，这台浏览器没有英文音色",
+      "浏览器一个英文语音都没给（多半是没装英文语音包）。解法：① 用 Safari / Edge；" +
+      "② 在系统设置里安装英文语音包后重启浏览器；③ 换回「有道美音」。");
+  } else if (via === "onlineonly") {
+    showSoundBar("在线发音失败，且只有需联网的系统音色",
+      "这台浏览器只提供「需联网」的音色（Google … / Microsoft … Online (Natural)），" +
+      "连不上就等于没声，所以兜不住。解法：① 在「系统音色」里选 Samantha / Alex 这类本机音色；" +
+      "② 用 Safari / Edge；③ 换回「有道美音」。");
   } else if (via === "web") {
     showSoundBar("系统语音没有发出声音",
       "Chrome 的「Google US English」等联网音色在国内会完全没声；把「发音引擎」换成「有道美音」，或在「系统音色」里选 Samantha / Alex 这类本机音色。" +
@@ -1273,8 +1313,12 @@ async function tryRemote(text) {
       const denied = !!e && (e.name === "NotAllowedError" ||
         /not allowed|user gesture|interact|gesture/i.test(String(e.message || "")));
       if (denied) return { ok: false, denied: true, err: e };
-      markUrlDead(url);
       errs.push(e);
+      // 「迟迟没数据」（stall）说明整条网络通道卡住了，不是这一个地址坏了：
+      //   · 别再换下一个候选白等 5 秒（实测会让用户干等 11 秒才听到声音），直接交给系统语音
+      //   · 也别把这个地址拉黑，否则网络恢复后它还一直被跳过
+      if (e && e.message === "stall") break;
+      markUrlDead(url);
     }
   }
   // 所有候选都「迟迟不出声」＝网络整体不通，进入冷却期，
@@ -1327,35 +1371,45 @@ async function speakOnceRaw(text) {
       }
     }
 
-    // 关键：Chrome 可能只提供「联网音色」，这时系统语音一定没声（国内连不上 Google），
-    // 再切过去只是白等 2 秒 × 3 次，还让用户以为程序坏了。直接如实报告。
-    if (!r.denied && !systemVoiceUsable()) {
-      voiceFallback = false;
-      remoteCooldownUntil = 0;        // 没有可用的兜底，就得继续试在线
-      return afterSystemFailed("nofallback");
+    // 关键：Chrome / Edge 可能只提供「联网音色」，这时系统语音一定没声（国内连不上
+    // Google / 微软的在线音色），再切过去只是白等 2 秒 × 3 次，还让用户以为程序坏了。
+    // 注意这里必须用 systemVoiceState()——它会先等音色加载完；
+    // 用同步版会在「刚打开页面」的那一刻误判成没有音色，白白放弃能用的兜底。
+    if (!r.denied) {
+      const vs = await systemVoiceState();
+      if (vs !== "local") {
+        voiceFallback = false;
+        remoteCooldownUntil = 0;      // 没有可用的兜底，就得继续试在线
+        return afterSystemFailed(vs === "none" ? "nofallback" : "onlineonly");
+      }
     }
 
     const ok = await webSpeak(text);
+    if (ok === "stale") return { ok: false, via: "stale" };
     if (ok) { sysFailStreak = 0; return { ok: true, via: "web" }; }
     return afterSystemFailed(r.denied ? "remote" : "web");
   }
 
   // 用户手动选了「浏览器语音」，但这台浏览器只有联网音色：先用在线音频兜一下，
   // 总比一点声都没有强（只提示一次，不打扰）。
-  if (!systemVoiceUsable()) {
+  const vsSelf = await systemVoiceState();
+  if (vsSelf !== "local") {
     const rr = await tryRemote(text);
     if (rr.ok) {
       sysFailStreak = 0;
       if (Date.now() - lastFallbackToast > 20000) {
         lastFallbackToast = Date.now();
-        toast("当前浏览器没有本机英文音色，已改用在线发音");
+        toast(vsSelf === "online-only"
+          ? "当前浏览器只有需联网的音色，已改用在线发音"
+          : "当前浏览器没有英文音色，已改用在线发音");
       }
       return { ok: true, via: "remote" };
     }
-    return afterSystemFailed("nofallback");
+    return afterSystemFailed(vsSelf === "none" ? "nofallback" : "onlineonly");
   }
 
   const ok = await webSpeak(text);
+  if (ok === "stale") return { ok: false, via: "stale" };
   if (ok) { sysFailStreak = 0; return { ok: true, via: "web" }; }
   return afterSystemFailed("web");
 }
@@ -1401,6 +1455,7 @@ function clearNextTimer() {
   if (nextTimer) { clearTimeout(nextTimer); nextTimer = null; }
 }
 function stopAllAudio() {
+  speakGen++;        // 停播＝作废所有还在等待中的发音轮次
   try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch (e) { }
   audioCache.forEach(a => { try { a.pause(); a.currentTime = 0; } catch (e) { } });
 }
@@ -1679,8 +1734,14 @@ function fillVoiceSelect() {
   }
   const all = (window.speechSynthesis.getVoices() || []).filter(v => /^en(-|_|$)/i.test(v.lang));
   if (!all.length) {
-    sel.innerHTML = '<option value="">未检测到英文音色</option>';
-    paintVoiceHint(true);
+    // getVoices() 是异步填充的。第一次调用很可能就是空的，
+    // 这时候绝不能直接说「未检测到英文音色」——Chrome / Edge 要等 voiceschanged。
+    sel.innerHTML = '<option value="">正在检测音色…</option>';
+    paintVoiceHint(null);
+    if (!fillVoiceSelect._retry) {
+      fillVoiceSelect._retry = setTimeout(() => { fillVoiceSelect._retry = 0; fillVoiceSelect(); }, 700);
+      setTimeout(() => { fillVoiceSelect._retry = 0; fillVoiceSelect(); }, 2200);   // 慢机器再来一次
+    }
     return;
   }
   // 本机音色排在前面：Chrome 的 Google 音色要连 Google 服务器，国内直接没声
@@ -1693,7 +1754,7 @@ function fillVoiceSelect() {
   sel.value = best ? best.name : sorted[0].name;
   // 只把「本机音色」记为默认选择：联网音色存下来只会在国内反复失败
   if (best && !cfg.voice && !isOnlineVoice(best)) { cfg.voice = best.name; saveCfg(); }
-  paintVoiceHint(false);
+  paintVoiceHint(sorted.some(v => !isOnlineVoice(v)) ? false : "online-only");
 }
 
 /**
@@ -1701,19 +1762,26 @@ function fillVoiceSelect() {
  * Chrome 桌面版可能一个本机英文音色都没有（只给 Google 联网音色），
  * 这种状态下系统语音在国内必定没声，必须在使用前就告诉用户。
  */
-function paintVoiceHint(noVoices) {
+/**
+ * state: "none" 一个英文音色都没有 / "online-only" 只有需联网的 /
+ *        false 正常 / null 还不知道（音色还没加载完，别报警）
+ */
+function paintVoiceHint(state) {
   const hint = $("#voiceHint");
   if (!hint) return;
-  if (noVoices) {
+  if (state === null || state === undefined) { hint.hidden = true; return; }
+  if (state === true || state === "none") {
     hint.hidden = false;
     hint.innerHTML = "这个浏览器没有提供英文音色，<b>系统语音不可用</b>；请把「发音引擎」换成<b>有道美音</b>。";
     return;
   }
-  const usable = systemVoiceUsable();
-  hint.hidden = usable;
-  if (usable) return;
-  hint.innerHTML = "当前只有<b>需联网</b>的音色（Google …），国内连不上就等于没声。" +
-    "请把「发音引擎」换成<b>有道美音</b>，或在系统设置里安装英文语音包后重启浏览器。";
+  if (state === "online-only") {
+    hint.hidden = false;
+    hint.innerHTML = "当前只有<b>需联网</b>的音色（Google … / Microsoft … Online (Natural)），国内连不上就等于没声。" +
+      "请把「发音引擎」换成<b>有道美音</b>，或在「系统音色」里选 Samantha / Alex 这类本机音色。";
+    return;
+  }
+  hint.hidden = true;
 }
 
 /* ---------------- 交互绑定 ---------------- */
