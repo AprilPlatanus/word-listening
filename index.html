@@ -108,7 +108,7 @@ input,select,textarea{font:inherit;color:inherit}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
 
 /* ============ 左侧词库 ============ */
-.lib{padding:16px 16px 10px;position:sticky;top:18px}
+.lib{padding:16px 16px 10px;position:sticky;top:18px;max-height:calc(100vh - 34px);overflow-y:auto}
 .panel-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .panel-hd h2{margin:0;font-size:13.5px;font-weight:650;letter-spacing:.06em}
 .hd-right{display:flex;align-items:center;gap:6px}
@@ -162,6 +162,67 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:#fff
 .wacts button:hover{background:#efe6d6;color:var(--gold-d)}
 .empty{text-align:center;color:var(--muted);font-size:12.5px;padding:22px 6px}
 
+/* ---- 已保存词库（多词库管理） ---- */
+.saved{margin-bottom:12px;padding:9px 10px 10px;border:1px solid var(--line-2);border-radius:12px;background:var(--panel-2)}
+.saved-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.saved-lbl{font-size:11.5px;color:var(--muted);letter-spacing:.05em}
+.saved-n{font-size:10.5px;color:#a99a82}
+.saved select{padding:7px 9px;font-size:12.5px;border-radius:9px;background:#fff;font-weight:550}
+.saved-acts{display:flex;gap:5px;margin-top:7px}
+.saved-acts .mini{flex:1;margin-left:0;padding:3px 0;text-align:center;font-size:11px;border-radius:8px}
+.saved-meta{margin:7px 0 0;font-size:10.5px;color:var(--muted);line-height:1.6}
+#libName{margin-top:8px;padding:7px 9px;font-size:12.5px;border-radius:9px}
+
+/* ---- 抽测数量 ---- */
+.set label .mini{float:right;margin:-2px 0 0 0;padding:0 8px;line-height:15px;font-size:10.5px}
+.count-row{display:flex;align-items:center;gap:6px;min-width:0}
+.count-row input{width:64px;flex:none;padding:6px 8px;font-size:12.5px;border-radius:8px;background:#fff;text-align:center}
+.count-tip{flex:1;min-width:0;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.count-row .mini{flex:none;margin-left:0}
+
+/* ============ 错题本 ============ */
+.wrong-layout{display:grid;grid-template-columns:minmax(0,1fr) 306px;gap:18px;align-items:start}
+.wr-main{padding:18px}
+.wr-side{padding:16px;position:sticky;top:18px}
+.wr-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:2px 0 14px}
+.wr-stat{padding:10px 12px;border:1px solid var(--line-2);border-radius:12px;background:var(--panel-2)}
+.wr-stat b{display:block;font-size:19px;font-weight:650;font-variant-numeric:tabular-nums;line-height:1.2}
+.wr-stat span{font-size:11px;color:var(--muted)}
+.wr-stat.bad b{color:var(--bad)}
+.wr-stat.warn b{color:var(--warn)}
+.wr-stat.ok b{color:var(--ok)}
+#wrLast{font-size:14px}
+.wr-acts{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px}
+.wr-acts .btn{padding:7px 12px;font-size:12.5px}
+.wr-sep{border:0;border-top:1px solid var(--line-2);margin:16px 0 4px}
+.wr-item{padding:12px 0 4px;border-bottom:1px solid var(--line-2)}
+.wr-item:last-child{border-bottom:0}
+.wr-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.wr-hd .t{font-size:13px;font-weight:600;color:var(--ink-2)}
+.wr-hd .m{font-size:11.5px;color:var(--muted);margin-top:2px}
+.wr-btns{display:flex;gap:6px;flex-wrap:wrap}
+.wr-btns .btn{padding:4px 9px;font-size:11.5px;border-radius:8px}
+.wr-words{display:flex;flex-wrap:wrap;gap:6px;margin:9px 0 10px}
+.wchip{
+  display:inline-flex;align-items:baseline;gap:5px;max-width:100%;
+  border:1px solid var(--line);background:#fff;border-radius:8px;padding:3px 8px;
+  font-size:12px;color:var(--ink-2);cursor:pointer;transition:.15s;
+}
+.wchip:hover{border-color:#d9cbb4;background:var(--gold-l)}
+.wchip b{font-weight:600}
+.wchip i{font-style:normal;font-size:10.5px;color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wchip.vague{border-color:#e8d9b6;background:#fdf6e6}
+.wchip.forgot{border-color:#eccfca;background:#fdf0ee}
+.wrtop{list-style:none;margin:0;padding:0;max-height:min(56vh,520px);overflow:auto}
+.wrtop li{display:flex;align-items:center;gap:8px;padding:6px 7px;border-radius:8px;font-size:12.5px;cursor:pointer}
+.wrtop li:hover{background:var(--gold-l)}
+.wrtop .rk{width:17px;flex:none;font-size:10.5px;color:#bdb2a0;text-align:right;font-variant-numeric:tabular-nums}
+.wrtop .wd{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wrtop .ct{flex:none;font-size:11px;color:var(--bad);font-weight:600;font-variant-numeric:tabular-nums}
+.wr-empty{text-align:center;padding:44px 16px;color:var(--muted);font-size:12.5px;line-height:1.9}
+.wr-empty h3{margin:0 0 6px;font-size:15px;font-weight:650;color:var(--ink-2)}
+.wr-empty .btn{margin-top:12px}
+
 /* ============ 右侧主区 ============ */
 .stage{padding:18px;position:relative}
 .stage-top{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
@@ -187,7 +248,7 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:#fff
 .set.wide{grid-column:span 2}
 .set.full{grid-column:1 / -1}   /* 带长提示的区域独占一整行，别和右侧开关挤在一起 */
 .set .unit{font-size:11px;color:var(--muted);margin-left:3px}
-.switch{display:flex;align-items:center;gap:7px;padding-top:15px;font-size:12px;color:var(--ink-2);cursor:pointer;user-select:none}
+.switch{display:flex;align-items:center;gap:7px;padding-top:15px;font-size:12px;color:var(--ink-2);cursor:pointer;user-select:none;grid-column:span 2;white-space:nowrap}
 .switch input{appearance:none;width:34px;height:19px;border-radius:20px;background:#ded4c2;position:relative;transition:.2s;cursor:pointer;flex:0 0 auto;border:none;padding:0}
 .switch input:checked{background:var(--gold)}
 .switch input::after{content:"";position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 2px rgba(0,0,0,.18)}
@@ -304,18 +365,23 @@ body.adj-open #toast{bottom:250px}
 @media (max-width:900px){
   .layout{grid-template-columns:1fr}
   #viewListen .layout.lib-masked{grid-template-columns:1fr}
-  .lib{position:static;order:2}
+  .lib{position:static;order:2;max-height:none;overflow:visible}
   .stage{order:1}
   .settings{grid-template-columns:repeat(3,minmax(0,1fr))}
   .set.wide{grid-column:span 3}
   .app{padding:16px 14px 34px}
   .playarea{min-height:290px;padding:20px 8px 12px}
+  .wrong-layout{grid-template-columns:1fr}
+  .wr-main{order:1}
+  .wr-side{position:static;order:2}
+  .wrtop{max-height:none}
 }
 @media (max-width:520px){
   .settings{grid-template-columns:repeat(2,minmax(0,1fr))}
   .set.wide{grid-column:span 2}
   .chips{width:100%;margin-left:0}
   .answer .def{font-size:15px}
+  .wr-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 
 /* ============ 视图切换 ============ */
@@ -444,6 +510,7 @@ body.adj-open #toast{bottom:250px}
     </div>
     <div class="tabs" id="tabs">
       <button class="on" data-view="listen" type="button">单词听测</button>
+      <button data-view="wrong" type="button">错题本</button>
       <button data-view="split" type="button">音频切分</button>
     </div>
     <div class="top-actions">
@@ -480,6 +547,22 @@ body.adj-open #toast{bottom:250px}
         <button class="btn" id="btnLibShow" type="button">显示词库</button>
       </div>
 
+      <!-- 已保存词库：多个词库并存，随时切换 -->
+      <div class="saved">
+        <div class="saved-hd">
+          <span class="saved-lbl">已保存词库</span>
+          <span class="saved-n" id="libTotal">共 1 个</span>
+        </div>
+        <select id="selLib" title="切换词库"></select>
+        <div class="saved-acts">
+          <button class="mini" id="btnLibRename" type="button" title="给当前词库改名">改名</button>
+          <button class="mini" id="btnLibCopy" type="button" title="复制当前词库为新词库">另存为</button>
+          <button class="mini" id="btnLibExport" type="button" title="导出当前词库（JSON / TXT）">导出</button>
+          <button class="mini" id="btnLibDel" type="button" title="删除当前词库">删除</button>
+        </div>
+        <p class="saved-meta" id="libMeta">词库保存在本机浏览器，换设备请先导出。</p>
+      </div>
+
       <div class="field">
         <label>批量录入 · 每行一个「单词 + 释义」</label>
         <textarea id="bulk" spellcheck="false" placeholder="abandon 放弃，抛弃
@@ -488,9 +571,10 @@ look after 照顾
 consider|考虑，认为
 mutual,相互的"></textarea>
         <p class="hint">分隔符自动识别：空格 / Tab / <code>|</code> / 逗号 / 冒号 / 短横线。含中文时按中文起点自动切开，所以 <code>look after 照顾</code> 也能正确拆分。</p>
+        <input type="text" id="libName" placeholder="新词库名称（留空自动命名）" autocomplete="off">
         <div class="row-btns">
-          <button class="btn gold" id="btnImport">导入替换</button>
-          <button class="btn" id="btnAppend">追加</button>
+          <button class="btn gold" id="btnImport">存为新词库</button>
+          <button class="btn" id="btnAppend">追加到当前</button>
           <button class="btn" id="btnFill">回填现词库</button>
         </div>
       </div>
@@ -516,7 +600,7 @@ mutual,相互的"></textarea>
         <div class="set wide">
           <label>发音引擎<button class="mini" id="btnTestSound" type="button" title="用当前引擎读一个 hello">试听</button></label>
           <select id="selEngine">
-            <option value="youdao-us">有道美音 · 近 NaturalReader 质感</option>
+            <option value="youdao-us">有道美音 · 真人录音</option>
             <option value="youdao-uk">有道英音</option>
             <option value="web">浏览器语音（系统音色）</option>
             <option value="custom">自定义接口</option>
@@ -546,6 +630,13 @@ mutual,相互的"></textarea>
         <div class="set wide" id="customWrap" hidden>
           <label>自定义地址（含 <code>{text}</code> 占位）</label>
           <input type="text" id="inpCustom" spellcheck="false" placeholder="https://your-tts.com/say?text={text}">
+        </div>
+        <div class="set wide">
+          <label>抽测数量<button class="mini" id="btnCountAll" type="button" title="恢复为测试整个词库">全部</button></label>
+          <div class="count-row">
+            <input type="number" id="inpCount" min="0" max="999" step="1" value="0" title="每轮从词库里抽多少个词，0 = 全部">
+            <span class="count-tip" id="countTip">0 = 全部</span>
+          </div>
         </div>
         <label class="switch" title="开启后每轮顺序随机"><input type="checkbox" id="chkShuffle">打乱顺序</label>
         <label class="switch" title="揭晓后停留 4 秒自动跳下一题"><input type="checkbox" id="chkAutoNext">自动下一题</label>
@@ -608,6 +699,7 @@ mutual,相互的"></textarea>
           <p id="endHint"></p>
           <div class="actions">
             <button class="btn" id="btnRetryWrong">只练「模糊 + 忘了」</button>
+            <button class="btn" id="btnEndWrongBook" hidden>查看错题本 →</button>
             <button class="btn gold" id="btnRestart">再来一轮</button>
           </div>
         </div>
@@ -626,6 +718,43 @@ mutual,相互的"></textarea>
 
     </main>
   </div>
+  </section>
+
+  <!-- ============ 错题本 ============ -->
+  <section id="viewWrong" class="wrong-layout" hidden>
+
+    <div class="panel wr-main">
+      <div class="panel-hd">
+        <h2>错 题 本</h2>
+        <div class="hd-right">
+          <span class="badge" id="wrBadge">0 个错词</span>
+        </div>
+      </div>
+
+      <div class="wr-stats" id="wrStats">
+        <div class="wr-stat bad"><b id="wrWrong">0</b><span>累计错词（去重）</span></div>
+        <div class="wr-stat"><b id="wrTimes">0</b><span>测试次数</span></div>
+        <div class="wr-stat warn"><b id="wrVague">0</b><span>错词人次</span></div>
+        <div class="wr-stat"><b id="wrLast">—</b><span>最近一次</span></div>
+      </div>
+
+      <div class="wr-acts">
+        <button class="btn gold" id="btnWrExport">导出全部错题 CSV</button>
+        <button class="btn" id="btnWrToLib">全部错词 → 新词库</button>
+        <button class="btn" id="btnWrClear">清空记录</button>
+      </div>
+
+      <div id="wrList"></div>
+    </div>
+
+    <aside class="panel wr-side">
+      <div class="panel-hd">
+        <h2>高 频 错 词</h2>
+        <span class="badge" id="wrTopBadge">—</span>
+      </div>
+      <ol class="wrtop" id="wrTopList"></ol>
+      <p class="hint" style="margin-top:10px">点任意词可听发音；「累计错词」按单词去重统计。</p>
+    </aside>
   </section>
 
   <!-- ============ 音频切分 ============ -->
@@ -760,14 +889,20 @@ mutual,相互的"></textarea>
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.prototype.slice.call(r.querySelectorAll(s));
 
-const LS = { words: "wdt.words.v1", cfg: "wdt.cfg.v1" };
+const LS = {
+  words: "wdt.words.v1", cfg: "wdt.cfg.v1",
+  libs: "wdt.libs.v2", active: "wdt.active.v2", records: "wdt.records.v1"
+};
 const DEFAULTS = {
   engine: "youdao-us", voice: "", rate: 0.9, repeat: 2, gap: 1,
-  delay: 2, shuffle: false, autoNext: false, customUrl: ""
+  delay: 2, shuffle: true, autoNext: false, customUrl: "", count: 0
 };
 
 let cfg = Object.assign({}, DEFAULTS);
-let words = [];
+let libs = [];           // 已保存词库 [{id,name,words,createdAt}]
+let activeId = "";       // 当前词库 id
+let words = [];          // 当前词库的单词（引用 activeLib().words）
+let records = [];        // 错题记录 [{id,ts,libName,total,know,vague,forgot,wrong:[{w,d,mark}]}]
 let queue = [];          // words 索引顺序
 let pos = 0;
 let marks = {};          // wordsIndex -> know|vague|forgot
@@ -780,18 +915,212 @@ const audioCache = new Map();
 const CJK = /[\u3400-\u4dbf\u4e00-\u9fa5]/;
 
 /* ---------------- 存储 ---------------- */
+function cleanList(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .map(x => (x && (x.w || x.word)) ? { w: String(x.w || x.word), d: String(x.d || x.def || x.meaning || "") } : null)
+    .filter(Boolean);
+}
+function newId(p) {
+  return (p || "lib") + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+function mkLib(name, list) {
+  return { id: newId("lib"), name: String(name || "未命名词库").trim() || "未命名词库", words: cleanList(list), createdAt: Date.now() };
+}
+function activeLib() {
+  return libs.find(l => l.id === activeId) || libs[0] || null;
+}
 function loadStore() {
+  // 词库：优先读多词库结构，否则把旧版单列表迁过来
   try {
-    const w = JSON.parse(localStorage.getItem(LS.words) || "[]");
-    if (Array.isArray(w)) words = w.filter(x => x && x.w).map(x => ({ w: String(x.w), d: String(x.d || "") }));
+    const raw = JSON.parse(localStorage.getItem(LS.libs) || "[]");
+    if (Array.isArray(raw)) {
+      libs = raw.filter(l => l && Array.isArray(l.words)).map(l => ({
+        id: l.id || newId("lib"),
+        name: String(l.name || "未命名词库"),
+        words: cleanList(l.words),
+        createdAt: Number(l.createdAt) || Date.now()
+      }));
+    }
   } catch (e) { }
+  if (!libs.length) {
+    let old = [];
+    try { old = cleanList(JSON.parse(localStorage.getItem(LS.words) || "[]")); } catch (e) { }
+    libs = [mkLib(old.length ? "我的词库" : "默认词库", old)];
+  }
+  const saved = localStorage.getItem(LS.active);
+  activeId = libs.some(l => l.id === saved) ? saved : libs[0].id;
+  words = activeLib().words;
+
+  // 设置：老配置没有 v 字段时，把「打乱顺序」升级为默认开启
   try {
     const c = JSON.parse(localStorage.getItem(LS.cfg) || "{}");
-    if (c && typeof c === "object") cfg = Object.assign({}, DEFAULTS, c);
+    const oldVer = !c || c.v !== 2;
+    cfg = Object.assign({}, DEFAULTS, c || {});
+    if (oldVer) cfg.shuffle = true;
+    cfg.v = 2;
+  } catch (e) { cfg = Object.assign({}, DEFAULTS, { v: 2 }); }
+
+  // 错题记录
+  try {
+    const r = JSON.parse(localStorage.getItem(LS.records) || "[]");
+    if (Array.isArray(r)) records = r.filter(x => x && Array.isArray(x.wrong));
   } catch (e) { }
 }
-function saveWords() { try { localStorage.setItem(LS.words, JSON.stringify(words)); } catch (e) { } }
+function persistLibs() {
+  const lib = activeLib();
+  if (lib) { lib.words = words; }
+  try {
+    localStorage.setItem(LS.libs, JSON.stringify(libs));
+    localStorage.setItem(LS.active, activeId);
+  } catch (e) { toast("本地存储已满，建议先导出词库再删减"); }
+}
+function saveWords() { persistLibs(); }
 function saveCfg() { try { localStorage.setItem(LS.cfg, JSON.stringify(cfg)); } catch (e) { } }
+function saveRecords() {
+  try { localStorage.setItem(LS.records, JSON.stringify(records)); }
+  catch (e) { toast("记录太多写不进本地存储，请先导出并清理"); }
+}
+
+/* ---------------- 词库管理 ---------------- */
+function fmtDate(ts, withTime) {
+  const d = new Date(ts);
+  const p = n => String(n).padStart(2, "0");
+  let s = d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+  if (withTime) s += " " + p(d.getHours()) + ":" + p(d.getMinutes());
+  return s;
+}
+function libNameExists(name, exceptId) {
+  return libs.some(l => l.id !== exceptId && l.name === name);
+}
+function uniqueLibName(base, exceptId) {
+  let n = String(base || "词库").trim() || "词库";
+  if (!libNameExists(n, exceptId)) return n;
+  let i = 2;
+  while (libNameExists(n + "(" + i + ")", exceptId)) i++;
+  return n + "(" + i + ")";
+}
+function renderLibSelect() {
+  const sel = $("#selLib");
+  if (!sel) return;
+  sel.innerHTML = libs.map(l =>
+    '<option value="' + l.id + '">' + esc(l.name) + "（" + l.words.length + " 词）</option>"
+  ).join("");
+  sel.value = activeId;
+  const n = $("#libTotal");
+  if (n) n.textContent = "共 " + libs.length + " 个";
+  const meta = $("#libMeta");
+  const l = activeLib();
+  if (meta && l) {
+    meta.textContent = "「" + l.name + "」" + l.words.length + " 词 · 创建于 " + fmtDate(l.createdAt) + " · 存在本机浏览器";
+  }
+}
+function resetRoundUI() {
+  started = false; finished = false; revealed = false; playing = false;
+  queue = []; marks = {};
+  clearCountdown(); clearNextTimer();
+  stopPlayback();
+  setLibMasked(false);
+  $("#gateStart").classList.remove("hide");
+  $("#gateEnd").classList.add("hide");
+  $("#btnEndWrongBook").hidden = true;
+  $("#answer").classList.remove("show");
+  $("#veil").classList.remove("hide");
+  paintList(); resetCounter(); paintStage(); syncGate();
+}
+function switchLib(id) {
+  if (id === activeId) return;
+  const l = libs.find(x => x.id === id);
+  if (!l) return;
+  persistLibs();
+  activeId = l.id;
+  words = l.words;
+  try { localStorage.setItem(LS.active, activeId); } catch (e) { }
+  renderLibSelect();
+  resetRoundUI();
+  toast("已切换到「" + l.name + "」· " + words.length + " 词");
+}
+function createLib(name, list) {
+  const lib = mkLib(uniqueLibName(name), list);
+  libs.push(lib);
+  // 首次建库时顺手清掉自动生成的空词库，列表干净一点
+  const dead = libs.findIndex(x => x.id !== lib.id && !x.words.length && (x.name === "默认词库" || x.name === "我的词库"));
+  if (dead >= 0 && libs.length > 1) libs.splice(dead, 1);
+  activeId = lib.id;
+  words = lib.words;
+  persistLibs();
+  renderLibSelect();
+  resetRoundUI();
+  return lib;
+}
+function renameActiveLib() {
+  const l = activeLib();
+  if (!l) return;
+  const name = prompt("给词库改个名字：", l.name);
+  if (name === null) return;
+  const n = String(name).trim();
+  if (!n) { toast("名字不能为空"); return; }
+  if (libNameExists(n, l.id)) { toast("已有同名词库"); return; }
+  l.name = n;
+  persistLibs(); renderLibSelect(); syncGate();
+  toast("已改名为「" + n + "」");
+}
+function dupActiveLib() {
+  const l = activeLib();
+  if (!l) return;
+  const name = prompt("另存为新的词库：", uniqueLibName(l.name + " 副本"));
+  if (name === null) return;
+  const n = String(name).trim();
+  if (!n) { toast("名字不能为空"); return; }
+  const copy = mkLib(uniqueLibName(n), words.map(x => ({ w: x.w, d: x.d })));
+  libs.push(copy);
+  activeId = copy.id;
+  words = copy.words;
+  persistLibs(); renderLibSelect(); resetRoundUI();
+  toast("已另存为「" + copy.name + "」");
+}
+function delActiveLib() {
+  const l = activeLib();
+  if (!l) return;
+  if (libs.length === 1) {
+    if (!confirm("这是最后一个词库。删除会把里面的 " + words.length + " 个词清空，确定？")) return;
+    words.length = 0;
+    persistLibs(); renderLibSelect(); resetRoundUI();
+    toast("词库已清空");
+    return;
+  }
+  if (!confirm("删除词库「" + l.name + "」（" + l.words.length + " 词）？\n错题记录不受影响。")) return;
+  const i = libs.indexOf(l);
+  libs.splice(i, 1);
+  const next = libs[Math.max(0, i - 1)];
+  activeId = next.id;
+  words = next.words;
+  persistLibs(); renderLibSelect(); resetRoundUI();
+  toast("已删除，当前为「" + next.name + "」");
+}
+function downloadText(filename, text, mime) {
+  const blob = new Blob([text], { type: (mime || "text/plain") + ";charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+function safeName(s) {
+  return String(s || "词库").replace(/[\\/:*?"<>|\r\n\t]/g, "_").replace(/\s+/g, " ").trim().slice(0, 50) || "词库";
+}
+function exportActiveLib(asTxt) {
+  const l = activeLib();
+  if (!l || !words.length) { toast("词库是空的"); return; }
+  const base = "词库-" + safeName(l.name) + "-" + fmtDate(Date.now());
+  if (asTxt) {
+    downloadText(base + ".txt", words.map(it => it.w + (it.d ? " " + it.d : "")).join("\n") + "\n");
+    toast("已导出 TXT（可直接粘回导入框）");
+  } else {
+    downloadText(base + ".json", JSON.stringify(words, null, 2), "application/json");
+    toast("已导出 JSON 备份");
+  }
+}
 
 /* ---------------- 解析 ---------------- */
 function parseLine(line) {
@@ -1588,6 +1917,14 @@ function startSession(onlyWrong) {
     pool = pool.filter(i => marks[i] === "vague" || marks[i] === "forgot");
     if (!pool.length) { toast("没有标记为「模糊 / 忘了」的单词"); return; }
   }
+  // 抽测数量：先随机抽样，再按设置决定是否打乱顺序
+  const want = Math.max(0, parseInt(cfg.count, 10) || 0);
+  if (want > 0 && want < pool.length) {
+    pool = shuffleArr(pool.slice()).slice(0, want);
+    pool.sort((a, b) => a - b);        // 抽样后恢复词库原序，保证打乱开关才是唯一变量
+  } else if (want >= pool.length) {
+    // 想抽的比库里还多，就测全部
+  }
   queue = cfg.shuffle ? shuffleArr(pool) : pool;
   pos = 0; started = true; finished = false; revealed = false;
   marks = {};
@@ -1639,22 +1976,44 @@ function finishSession() {
   $("#fForgot").textContent = c.forgot;
   const total = queue.length;
   const unmarked = total - c.know - c.vague - c.forgot;
+
+  // 错题归档：模糊 / 忘了都算错题，存进本机错题本
+  const wrong = queue
+    .filter(i => marks[i] === "vague" || marks[i] === "forgot")
+    .map(i => ({ w: words[i].w, d: words[i].d || "", mark: marks[i] }));
+  if (total) {
+    const lib = activeLib();
+    records.push({
+      id: newId("rec"), ts: Date.now(),
+      libName: lib ? lib.name : "",
+      total: total, know: c.know, vague: c.vague, forgot: c.forgot,
+      wrong: wrong
+    });
+    if (records.length > 200) records = records.slice(records.length - 200);
+    saveRecords();
+  }
+  $("#btnEndWrongBook").hidden = wrong.length === 0;
+
   let txt = "共 " + total + " 个单词";
   if (unmarked > 0) txt += "，其中 " + unmarked + " 个未标记";
-  if (c.forgot + c.vague > 0) txt += "。建议只练「模糊 + 忘了」。";
+  if (c.forgot + c.vague > 0) txt += "，已记入错题本。建议只练「模糊 + 忘了」。";
   else if (c.know === total) txt += "，全部记得，很稳。";
   else txt += "。";
   $("#endHint").textContent = txt;
   $("#btnRetryWrong").disabled = (c.forgot + c.vague === 0);
   $("#gateEnd").classList.remove("hide");
+  if (viewName === "wrong") renderWrongBook();
 }
 
 /* ---------------- 渲染 ---------------- */
 function paintList() {
   const ul = $("#wordlist");
   $("#libCount").textContent = words.length + " 个";
+  const meta = $("#libMeta");
+  const lib = activeLib();
+  if (meta && lib) meta.textContent = "「" + lib.name + "」" + words.length + " 词 · 创建于 " + fmtDate(lib.createdAt) + " · 存在本机浏览器";
   if (!words.length) {
-    ul.innerHTML = '<li class="empty">还没有单词<br>上方粘贴后点「导入替换」</li>';
+    ul.innerHTML = '<li class="empty">这个词库还是空的<br>上方粘贴后点「存为新词库」</li>';
     return;
   }
   const curIdx = started ? currentWordIndex() : -1;
@@ -1752,6 +2111,7 @@ function syncSettingsUI() {
   $("#inpGap").value = cfg.gap;
   $("#inpDelay").value = cfg.delay;
   $("#inpRate").value = cfg.rate;
+  $("#inpCount").value = Number(cfg.count) || 0;
   $("#chkShuffle").checked = !!cfg.shuffle;
   $("#chkAutoNext").checked = !!cfg.autoNext;
   $("#voiceWrap").hidden = cfg.engine !== "web";
@@ -1759,6 +2119,22 @@ function syncSettingsUI() {
   $("#inpCustom").value = cfg.customUrl || "";
   fillVoiceSelect();
   $("#delayTxt").textContent = String(Number(cfg.delay) || 0);
+  paintCountTip();
+}
+/** 抽测数量提示：库里有几个、这轮会抽几个 */
+function paintCountTip() {
+  const tip = $("#countTip");
+  if (!tip) return;
+  const n = Number(cfg.count) || 0;
+  if (!n) {
+    tip.textContent = words.length ? "全部 " + words.length + " 个" : "0 = 全部";
+    return;
+  }
+  if (words.length && n >= words.length) {
+    tip.textContent = "只有 " + words.length + " 个，全抽";
+  } else {
+    tip.textContent = "抽 " + n + " / " + words.length;
+  }
 }
 
 function fillVoiceSelect() {
@@ -1835,14 +2211,16 @@ const SAMPLE = [
 ];
 
 function loadSample() {
-  words = SAMPLE.map(x => ({ w: x.w, d: x.d }));
-  saveWords();
-  started = false;
-  setLibMasked(false);
-  $("#gateStart").classList.remove("hide");
-  $("#gateEnd").classList.add("hide");
-  paintList(); resetCounter();
-  syncGate();
+  const exist = libs.find(l => l.name === "示例词库");
+  if (exist) {
+    activeId = exist.id;
+    words = exist.words;
+    persistLibs();
+    renderLibSelect();
+    resetRoundUI();
+    return exist;
+  }
+  return createLib("示例词库", SAMPLE);
 }
 
 /** 按词库状态刷新起始面板文案 */
@@ -1851,11 +2229,16 @@ function syncGate() {
   if (!btn) return;
   if (!words.length) {
     btn.textContent = "用示例词库开始";
-    desc.textContent = "词库还是空的。可以直接用示例词库试一轮，或把单词粘到左边点「导入替换」。";
+    desc.textContent = "这个词库还是空的。可以先用示例词库试一轮，或把单词粘到左边点「存为新词库」。";
   } else {
     btn.textContent = "开始听测";
-    desc.textContent = "词库里有 " + words.length + " 个单词，点开始听测。";
+    const n = Number(cfg.count) || 0;
+    let s = "「" + (activeLib() || {}).name + "」共 " + words.length + " 个单词";
+    if (n > 0 && n < words.length) s += "，本轮抽 " + n + " 个";
+    s += cfg.shuffle ? " · 顺序已打乱。" : " · 按词库顺序。";
+    desc.textContent = s;
   }
+  paintCountTip();
 }
 
 let toastTimer = null;
@@ -1893,6 +2276,160 @@ function askLibMask(on) {
   if (on) toast("词库已隐藏，专心听音");
 }
 
+/* ---------------- 错题本 ---------------- */
+function wrongStats() {
+  const map = new Map();
+  let markCount = 0;
+  records.forEach(r => {
+    (r.wrong || []).forEach(it => {
+      const k = String(it.w || "").toLowerCase();
+      if (!k) return;
+      let o = map.get(k);
+      if (!o) { o = { w: it.w, d: it.d || "", count: 0, vague: 0, forgot: 0, last: 0 }; map.set(k, o); }
+      o.count++; markCount++;
+      if (it.mark === "forgot") o.forgot++; else o.vague++;
+      o.last = Math.max(o.last, r.ts || 0);
+      if (!o.d && it.d) o.d = it.d;
+    });
+  });
+  const list = Array.from(map.values()).sort((a, b) => b.count - a.count || b.last - a.last);
+  return { list, marks: markCount };
+}
+function dedupeEntries(items) {
+  const seen = new Set(), out = [];
+  items.forEach(it => {
+    const k = String(it.w || "").toLowerCase();
+    if (!k || seen.has(k)) return;
+    seen.add(k);
+    out.push({ w: it.w, d: it.d || "" });
+  });
+  return out;
+}
+function renderWrongBook() {
+  const box = $("#wrList");
+  if (!box) return;
+  const st = wrongStats();
+  const uniq = st.list.length;
+  $("#wrWrong").textContent = uniq;
+  $("#wrTimes").textContent = records.length;
+  $("#wrVague").textContent = st.marks;
+  const last = records.reduce((m, r) => Math.max(m, r.ts || 0), 0);
+  $("#wrLast").textContent = last ? fmtDate(last, true).slice(5) : "—";
+  $("#wrBadge").textContent = uniq + " 个错词";
+  $("#wrTopBadge").textContent = uniq ? "TOP " + Math.min(20, uniq) : "—";
+  $("#btnWrExport").disabled = uniq === 0;
+  $("#btnWrToLib").disabled = uniq === 0;
+
+  // 高频错词
+  const top = $("#wrTopList");
+  top.innerHTML = st.list.slice(0, 20).map((o, i) =>
+    '<li data-w="' + esc(o.w) + '"><span class="rk">' + (i + 1) + '</span>' +
+    '<span class="wd">' + esc(o.w) + '</span><span class="ct">×' + o.count + "</span></li>"
+  ).join("") || '<li class="empty" style="cursor:default">还没有错词</li>';
+
+  if (!records.length) {
+    box.innerHTML = '<div class="wr-empty"><h3>还没有测试记录</h3>' +
+      "做完一轮听测，标成「模糊 / 忘了」的词会自动进这里。<br>可以按次查看、导出 CSV，也能一键变成新词库重练。" +
+      '<br><button class="btn gold" id="btnWrGoListen">去听测 →</button></div>';
+    const go = $("#btnWrGoListen");
+    if (go) go.onclick = () => switchView("listen");
+    return;
+  }
+
+  const rows = records.slice().sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  box.innerHTML = rows.map(r => {
+    const wrong = r.wrong || [];
+    const chips = wrong.map(it =>
+      '<button class="wchip ' + (it.mark === "forgot" ? "forgot" : "vague") + '" data-w="' + esc(it.w) + '" title="点一下听发音">' +
+      "<b>" + esc(it.w) + "</b>" + (it.d ? "<i>" + esc(it.d) + "</i>" : "") + "</button>"
+    ).join("");
+    return '<div class="wr-item" data-id="' + r.id + '">' +
+      '<div class="wr-hd"><div>' +
+        '<div class="t">' + fmtDate(r.ts, true) + ' <span class="badge" style="background:#fdecea;color:#b4453b">' + wrong.length + " 个错词</span></div>" +
+        '<div class="m">' + (r.libName ? "「" + esc(r.libName) + "」· " : "") + "共 " + r.total + " 词 · 记得 " + r.know + " / 模糊 " + r.vague + " / 忘了 " + r.forgot + "</div>" +
+      "</div><div class=\"wr-btns\">" +
+        (wrong.length ? '<button class="btn" data-act="retest">重练这 ' + wrong.length + " 个</button>" +
+                        '<button class="btn" data-act="csv">导出 CSV</button>' : '<span class="muted" style="font-size:11.5px;color:var(--ok)">全对 🎉</span>') +
+        '<button class="btn" data-act="del">删除</button>' +
+      "</div></div>" +
+      (wrong.length ? '<div class="wr-words">' + chips + "</div>" : "") +
+    "</div>";
+  }).join("");
+}
+function retestWrong(entries, label) {
+  if (!entries.length) { toast("没有可重练的错词"); return; }
+  const lib = createLib("错词重练 " + label, entries);
+  switchView("listen");
+  startSession(false);
+  toast("已建「" + lib.name + "」· " + entries.length + " 词，开始重练");
+}
+function csvCell(v) {
+  const s = String(v == null ? "" : v);
+  return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function downloadCSV(filename, rows) {
+  const csv = "\uFEFF" + rows.map(r => r.map(csvCell).join(",")).join("\r\n");
+  downloadText(filename, csv, "text/csv");
+}
+function exportWrongCSV(one) {
+  const rows = [["序号", "单词", "释义", "标记", "测试时间", "词库", "本轮词数"]];
+  const src = one ? [one] : records.slice().sort((a, b) => (a.ts || 0) - (b.ts || 0));
+  let n = 0;
+  src.forEach(r => (r.wrong || []).forEach(it => {
+    rows.push([++n, it.w, it.d || "",
+      it.mark === "forgot" ? "忘了" : "模糊",
+      fmtDate(r.ts, true), r.libName || "", r.total]);
+  }));
+  if (rows.length === 1) { toast("还没有错题可导出"); return; }
+  const tag = one ? safeName(one.libName) : "全部";
+  const when = safeName(fmtDate(one ? one.ts : Date.now(), true));
+  downloadCSV("错题本-" + tag + "-" + when + ".csv", rows);
+  toast("已导出 " + (rows.length - 1) + " 条错题");
+}
+function bindWrongBook() {
+  $("#btnWrExport").onclick = () => exportWrongCSV(null);
+  $("#btnWrToLib").onclick = () => {
+    const st = wrongStats();
+    retestWrong(st.list.map(o => ({ w: o.w, d: o.d })), "全部 " + fmtDate(Date.now(), true).slice(5));
+  };
+  $("#btnWrClear").onclick = () => {
+    if (!records.length) { toast("本来就是空的"); return; }
+    if (!confirm("清空全部 " + records.length + " 条测试记录？此操作不可恢复，建议先导出 CSV。")) return;
+    records = [];
+    saveRecords();
+    renderWrongBook();
+    toast("错题记录已清空");
+  };
+  $("#wrList").onclick = e => {
+    const chip = e.target.closest(".wchip");
+    if (chip) { stopPlayback(); speakOnce(chip.dataset.w); return; }
+    const item = e.target.closest(".wr-item");
+    if (!item) return;
+    const rec = records.find(r => r.id === item.dataset.id);
+    if (!rec) return;
+    const act = (e.target.closest("button[data-act]") || {}).dataset;
+    if (!act || !act.act) return;
+    if (act.act === "retest") {
+      retestWrong(dedupeEntries(rec.wrong || []), fmtDate(rec.ts, true).slice(5));
+    } else if (act.act === "csv") {
+      exportWrongCSV(rec);
+    } else if (act.act === "del") {
+      if (!confirm("删除这条记录（" + fmtDate(rec.ts, true) + "）？")) return;
+      records = records.filter(r => r.id !== rec.id);
+      saveRecords();
+      renderWrongBook();
+      toast("已删除该条记录");
+    }
+  };
+  $("#wrTopList").onclick = e => {
+    const li = e.target.closest("li[data-w]");
+    if (!li) return;
+    stopPlayback();
+    speakOnce(li.dataset.w);
+  };
+  $("#btnEndWrongBook").onclick = () => switchView("wrong");
+}
+
 function bind() {
   /* 声音诊断 */
   $("#btnTestSound").onclick = testSound;
@@ -1909,18 +2446,21 @@ function bind() {
   /* 词库 */
   $("#btnLibToggle").onclick = () => askLibMask(!libMasked);
   $("#btnLibShow").onclick = () => askLibMask(false);
+  $("#selLib").onchange = e => switchLib(e.target.value);
+  $("#btnLibRename").onclick = renameActiveLib;
+  $("#btnLibCopy").onclick = dupActiveLib;
+  $("#btnLibDel").onclick = delActiveLib;
+  $("#btnLibExport").onclick = e => exportActiveLib(!!e.shiftKey);
+  $("#btnLibExport").title = "导出当前词库（JSON 备份；按住 Shift 导出 TXT）";
+
   $("#btnImport").onclick = () => {
     const list = parseBulk($("#bulk").value);
     if (!list.length) { toast("没有解析到内容"); return; }
-    words = list;
-    saveWords();
-    started = false;
-    $("#gateStart").classList.remove("hide");
-    $("#gateEnd").classList.add("hide");
+    const name = $("#libName").value.trim() || ("词库 " + fmtDate(Date.now()).slice(5) + " " + (libs.length + 1));
+    const lib = createLib(name, list);
     $("#bulk").value = "";
-    setLibMasked(false);          // 录入完成，先让用户核对词库
-    paintList(); paintStage(); resetCounter(); syncGate();
-    toast("已导入 " + list.length + " 个单词");
+    $("#libName").value = "";
+    toast("已存为新词库「" + lib.name + "」· " + list.length + " 词");
   };
   $("#btnAppend").onclick = () => {
     const list = parseBulk($("#bulk").value);
@@ -1929,29 +2469,21 @@ function bind() {
     saveWords();
     $("#bulk").value = "";
     setLibMasked(false);
-    paintList(); resetCounter(); syncGate();
+    renderLibSelect(); paintList(); resetCounter(); syncGate();
     toast("已追加 " + list.length + " 个，共 " + words.length + " 个");
   };
   $("#btnFill").onclick = () => {
     setLibMasked(false);
     $("#bulk").value = words.map(it => it.w + " " + it.d).join("\n");
     $("#bulk").focus();
-    toast("已回填，改完点「导入替换」");
+    toast("已回填，改完点「存为新词库」或「追加到当前」");
   };
   $("#btnSample").onclick = () => {
-    if (words.length && !confirm("会覆盖当前词库，确定用示例词库？")) return;
-    loadSample();
-    toast("示例词库已就绪，点「开始听测」");
+    const lib = loadSample();
+    toast("已切到「" + lib.name + "」· " + lib.words.length + " 词，点「开始听测」");
   };
-  $("#btnExport").onclick = () => {
-    if (!words.length) { toast("词库是空的"); return; }
-    const blob = new Blob([JSON.stringify(words, null, 2)], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "词库-" + new Date().toISOString().slice(0, 10) + ".json";
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-  };
+  $("#btnExport").onclick = e => exportActiveLib(!!e.shiftKey);
+  $("#btnExport").title = "导出当前词库（JSON；按住 Shift 导出 TXT）";
   $("#fileImport").onchange = e => {
     const f = e.target.files && e.target.files[0];
     if (!f) return;
@@ -1961,15 +2493,13 @@ function bind() {
       try {
         const j = JSON.parse(rd.result);
         if (Array.isArray(j)) list = j.map(x => typeof x === "string" ? parseLine(x) : { w: x.w || x.word || "", d: x.d || x.def || x.meaning || "" }).filter(x => x && x.w);
+        else if (j && Array.isArray(j.words)) list = cleanList(j.words);
       } catch (err) {
         list = parseBulk(rd.result);
       }
       if (!list.length) { toast("文件里没有可用内容"); return; }
-      words = words.concat(list);
-      saveWords();
-      setLibMasked(false);
-      paintList(); resetCounter(); syncGate();
-      toast("已导入 " + list.length + " 个");
+      const lib = createLib(f.name.replace(/\.[^.]+$/, ""), list);
+      toast("已导入为新词库「" + lib.name + "」· " + list.length + " 词");
     };
     rd.readAsText(f, "utf-8");
     e.target.value = "";
@@ -2027,6 +2557,14 @@ function bind() {
   $("#inpRepeat").onchange = e => {
     cfg.repeat = clamp(e.target.value, 1, 9, 1); saveCfg(); syncSettingsUI(); paintStage();
   };
+  $("#inpCount").onchange = e => {
+    cfg.count = clamp(e.target.value, 0, 999, 0);
+    saveCfg(); syncSettingsUI(); syncGate();
+  };
+  $("#btnCountAll").onclick = () => {
+    cfg.count = 0; saveCfg(); syncSettingsUI(); syncGate();
+    toast("每轮抽测整个词库");
+  };
   $("#inpGap").onchange = e => {
     cfg.gap = clamp(e.target.value, 0, 9, 1); saveCfg(); syncSettingsUI();
   };
@@ -2037,7 +2575,7 @@ function bind() {
     cfg.rate = clamp(e.target.value, 0.5, 1.5, 0.9); saveCfg(); syncSettingsUI();
   };
   $("#inpCustom").onchange = e => { cfg.customUrl = e.target.value.trim(); saveCfg(); };
-  $("#chkShuffle").onchange = e => { cfg.shuffle = e.target.checked; saveCfg(); };
+  $("#chkShuffle").onchange = e => { cfg.shuffle = e.target.checked; saveCfg(); syncGate(); };
   $("#chkAutoNext").onchange = e => { cfg.autoNext = e.target.checked; saveCfg(); };
 
   /* 播放控制 */
@@ -3335,15 +3873,19 @@ function switchView(name) {
   $$("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.view === name));
   $("#viewListen").hidden = name !== "listen";
   $("#viewSplit").hidden = name !== "split";
+  $("#viewWrong").hidden = name !== "wrong";
   if (name !== "split" && SP.adj) spCloseAdj();
   if (name === "listen") {
     spStop();
   } else {
     stopPlayback();
-    setTimeout(() => {
-      if (SP.buffer) { spBuildPeaks(); spDrawWave(); }
-      if (SP.adj) spDrawAdj();
-    }, 40);
+    if (name === "split") {
+      setTimeout(() => {
+        if (SP.buffer) { spBuildPeaks(); spDrawWave(); }
+        if (SP.adj) spDrawAdj();
+      }, 40);
+    }
+    if (name === "wrong") renderWrongBook();
   }
   try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e) { }
 }
@@ -3509,6 +4051,7 @@ function init() {
   loadStore();
   bind();
   bindSplit();
+  bindWrongBook();
   // 第一次点击/按键时解锁音频通道：没有这一步，自动下一题的发音会被浏览器拦截
   document.addEventListener("pointerdown", unlockAudio, { once: true, passive: true });
   document.addEventListener("keydown", unlockAudio, { once: true });
@@ -3516,6 +4059,7 @@ function init() {
   window.addEventListener("dragover", e => e.preventDefault());
   window.addEventListener("drop", e => { if (!e.defaultPrevented) e.preventDefault(); });
   syncSettingsUI();
+  renderLibSelect();
   paintList();
   resetCounter();
   syncGate();
