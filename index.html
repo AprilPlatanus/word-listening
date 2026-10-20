@@ -419,8 +419,10 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:#fff
 .veil{gap:8px;color:var(--muted)}
 .veil .eye{font-size:20px;opacity:.5}
 .veil p{margin:0;font-size:12.5px;letter-spacing:.04em}
+.veil .veil-tip{font-size:11.5px;opacity:.62}
 .veil b{color:var(--gold-d);font-variant-numeric:tabular-nums;font-size:14px}
-.veil.hide{opacity:0;transform:scale(.97);pointer-events:none}
+/* 揭晓时遮罩要退得比释义淡入更快，否则两段文字会叠在一起糊成一片 */
+.veil.hide{opacity:0;transform:scale(.97);pointer-events:none;visibility:hidden;transition:opacity .2s ease,transform .2s ease,visibility 0s .2s}
 .answer{opacity:0;transform:translateY(10px);pointer-events:none}
 .answer.show{opacity:1;transform:none;pointer-events:auto}
 .answer .word{
@@ -826,6 +828,7 @@ mutual,相互的"></textarea>
           <div class="veil" id="veil">
             <div class="eye">👁</div>
             <p>发音结束后 <b id="delayTxt">2</b> 秒自动显示释义</p>
+            <p class="veil-tip">想先对答案？点「记得 / 模糊 / 忘了」立刻显示</p>
           </div>
           <div class="answer" id="answer">
             <div class="word" id="ansWord"></div>
@@ -834,9 +837,9 @@ mutual,相互的"></textarea>
         </div>
 
         <div class="mark" id="markRow">
-          <button data-m="know">记得</button>
-          <button data-m="vague">模糊</button>
-          <button data-m="forgot">忘了</button>
+          <button data-m="know" title="立刻显示这个单词的释义">记得</button>
+          <button data-m="vague" title="立刻显示这个单词的释义">模糊</button>
+          <button data-m="forgot" title="立刻显示这个单词的释义">忘了</button>
         </div>
 
         <div class="actions">
@@ -2612,8 +2615,7 @@ function doReveal() {
   if (revealed || !queue.length) return;
   revealed = true;
   clearCountdown();
-  paintStage();
-  preloadNext();
+  // 先把 1 秒定时器装上，再刷界面：否则状态文字会误报「点下一题继续」
   // 统一节奏：释义只停 1 秒，随后自动进入下一题并播放（想回看用「← 上一题」）
   clearNextTimer();
   nextTimer = setTimeout(() => {
@@ -2621,6 +2623,8 @@ function doReveal() {
     if (!revealed) return;                                            // 期间换了题
     goNext();
   }, REVEAL_STAY_MS);
+  paintStage();
+  preloadNext();
 }
 
 /* ---------------- 会话 ---------------- */
@@ -2979,8 +2983,13 @@ function paintStage() {
     if (audioDead) {
       $("#status").innerHTML = "⚠ 本轮没有音频 · 已直接显示拼写";
     } else {
+      // 揭晓文案带上自评结果：点完「记得」就能看到自己标了什么
+      const mk = revealed ? marks[currentWordIndex()] : "";
+      const mkTxt = mk === "know" ? "已标记「记得」"
+        : mk === "vague" ? "已标记「模糊」"
+          : mk === "forgot" ? "已标记「忘了」" : "释义已显示";
       $("#status").textContent = total
-        ? (revealed ? (nextTimer ? "释义已显示 · 1 秒后进入下一题" : "释义已显示 · 点下一题继续") : "点圆形按钮再听一遍")
+        ? (revealed ? (nextTimer ? mkTxt + " · 1 秒后进入下一题" : mkTxt + " · 点下一题继续") : "点圆形按钮再听一遍")
         : "点击开始，听发音后回忆释义";
     }
   }
@@ -4180,16 +4189,23 @@ function bind() {
     if (confirm("放弃后这份进度就没了（错题本里已归档的记录不受影响），确定？")) dropSession();
   };
 
-  /* 自评 */
+  /* 自评：点下去就算作答完成，立即揭晓这个单词的释义（不再 320ms 直接翻页） */
   $("#markRow").onclick = e => {
     const b = e.target.closest("button[data-m]");
     if (!b) return;
     const idx = currentWordIndex();
     if (idx < 0) return;
     marks[idx] = b.dataset.m;
-    paintStage();
-    clearNextTimer();
-    setTimeout(() => goNext(), 320);
+    if (!revealed) {
+      // 先收声（可能还在念第二、三遍），再揭晓：释义照常停留 1 秒后自动进入下一题
+      stopPlayback();
+      doReveal();
+    } else {
+      // 已经看见释义了，点自评就往下走
+      paintStage();
+      clearNextTimer();
+      setTimeout(() => goNext(), 320);
+    }
   };
 
   /* 键盘 */
@@ -4222,6 +4238,15 @@ function bind() {
     } else if (e.key === "ArrowLeft") {
       e.preventDefault();
       if (queue.length) goPrev();
+    } else if (e.key === "1" || e.key === "2" || e.key === "3") {
+      // 与点按钮完全同一条路径：标完即揭晓释义（结算页里不响应，避免改已归档的统计）
+      e.preventDefault();
+      if (!queue.length) return;
+      if (!$("#gateStart").classList.contains("hide")) return;
+      if (!$("#gateEnd").classList.contains("hide")) return;
+      const m = e.key === "1" ? "know" : e.key === "2" ? "vague" : "forgot";
+      const btn = document.querySelector('#markRow button[data-m="' + m + '"]');
+      if (btn) btn.click();
     }
   });
 
