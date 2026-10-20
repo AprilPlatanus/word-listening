@@ -122,6 +122,7 @@ input,select,textarea{font:inherit;color:inherit}
 .lib-eye:hover{background:var(--gold-l);border-color:#e2d0b2;color:var(--gold-d)}
 .lib.masked{padding-bottom:16px}
 .lib.masked .field,.lib.masked #wordlist{display:none}
+.lib.masked .lr-eye{display:none}
 .lib-guard{display:none;flex-direction:column;align-items:center;text-align:center;gap:7px;
   padding:26px 12px 20px;border:1.5px dashed #e2d3b8;border-radius:13px;background:var(--panel-2)}
 .lib.masked .lib-guard{display:flex}
@@ -162,16 +163,69 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:#fff
 .wacts button:hover{background:#efe6d6;color:var(--gold-d)}
 .empty{text-align:center;color:var(--muted);font-size:12.5px;padding:22px 6px}
 
-/* ---- 已保存词库（多词库管理） ---- */
-.saved{margin-bottom:12px;padding:9px 10px 10px;border:1px solid var(--line-2);border-radius:12px;background:var(--panel-2)}
-.saved-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
-.saved-lbl{font-size:11.5px;color:var(--muted);letter-spacing:.05em}
-.saved-n{font-size:10.5px;color:#a99a82}
-.saved select{padding:7px 9px;font-size:12.5px;border-radius:9px;background:#fff;font-weight:550}
-.saved-acts{display:flex;gap:5px;margin-top:7px}
+/* ---- 已保存词库（独立板块 · 逐个列出） ---- */
+.shelf{margin-bottom:12px;padding:9px 9px 8px;border:1px solid var(--line-2);border-radius:12px;background:var(--panel-2)}
+.shelf-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding:0 2px}
+.shelf-lbl{font-size:11.5px;color:var(--muted);letter-spacing:.05em}
+.shelf-n{font-size:10.5px;color:#a99a82}
+.shelf-list{list-style:none;margin:0;padding:0;max-height:190px;overflow-y:auto}
+.shelf-list::-webkit-scrollbar{width:6px}
+.shelf-list::-webkit-scrollbar-thumb{background:#e2d8c6;border-radius:6px}
+.lib-row{display:flex;align-items:center;gap:2px;border-radius:9px;transition:.15s}
+.lib-row:hover{background:#f6efe2}
+.lib-row.on{background:var(--gold-l)}
+.lr-main{flex:1;min-width:0;display:flex;align-items:center;gap:6px;padding:6px 7px;
+  border:0;background:none;cursor:pointer;font-family:inherit;text-align:left}
+.lr-name{flex:1;min-width:0;font-size:12.5px;font-weight:600;color:var(--ink-2);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lib-row.on .lr-name{color:var(--gold-d)}
+.lr-cur{flex:none;font-size:9.5px;line-height:15px;padding:0 6px;border-radius:20px;
+  color:#8a6a2f;background:#fff;border:1px solid #e6d5b6}
+.lr-n{flex:none;font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.lr-eye{flex:none;width:25px;height:25px;margin-right:2px;border-radius:7px;display:grid;place-items:center;
+  color:#a89a84;border:0;background:none;cursor:pointer;opacity:.72;transition:.15s}
+.lib-row:hover .lr-eye,.lib-row.on .lr-eye{opacity:1}
+.lr-eye:hover{background:#efe6d6;color:var(--gold-d)}
+.saved-meta{margin:7px 2px 0;font-size:10.5px;color:var(--muted);line-height:1.6}
+.saved-acts{display:flex;gap:5px;margin-top:8px}
 .saved-acts .mini{flex:1;margin-left:0;padding:3px 0;text-align:center;font-size:11px;border-radius:8px}
-.saved-meta{margin:7px 0 0;font-size:10.5px;color:var(--muted);line-height:1.6}
 #libName{margin-top:8px;padding:7px 9px;font-size:12.5px;border-radius:9px}
+
+/* ---- 词库预览 ---- */
+.libview{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;padding:24px}
+.libview[hidden]{display:none}
+.lv-mask{position:absolute;inset:0;background:rgba(46,36,22,.4);backdrop-filter:blur(2px)}
+.lv-box{position:relative;width:min(560px,100%);max-height:min(78vh,720px);display:flex;flex-direction:column;
+  background:var(--panel);border:1px solid var(--line-2);border-radius:16px;overflow:hidden;
+  box-shadow:0 26px 64px rgba(60,44,20,.24)}
+.lv-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:15px 16px 10px}
+.lv-title{min-width:0}
+.lv-title b{display:block;font-size:15px;font-weight:650;color:var(--ink-2);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lv-title span{font-size:11.5px;color:var(--muted)}
+.lv-x{width:28px;height:28px;flex:none;border-radius:8px;display:grid;place-items:center;
+  font-size:18px;line-height:1;color:var(--muted);border:0;background:none;cursor:pointer}
+.lv-x:hover{background:#efe6d6;color:var(--gold-d)}
+.lv-bar{display:flex;align-items:center;gap:9px;padding:0 16px 10px}
+.lv-bar input{padding:7px 10px;font-size:12.5px;border-radius:9px}
+.lv-count{flex:none;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.lv-list{list-style:none;margin:0;padding:2px 10px 6px;overflow-y:auto;flex:1;border-top:1px solid var(--line-2)}
+.lv-list::-webkit-scrollbar{width:6px}
+.lv-list::-webkit-scrollbar-thumb{background:#e2d8c6;border-radius:6px}
+.lv-list li{display:flex;align-items:baseline;gap:10px;padding:7px;border-radius:7px;
+  border-bottom:1px solid #f2ece0;cursor:pointer;transition:.13s}
+.lv-list li:hover{background:var(--panel-2)}
+.lv-list li:last-child{border-bottom:0}
+.li-i{flex:none;width:22px;font-size:10.5px;color:#bdb2a0;font-variant-numeric:tabular-nums}
+.li-w{flex:none;max-width:52%;font-size:13px;font-weight:600;color:var(--ink-2);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li-d{flex:1;min-width:0;font-size:12px;color:var(--muted);text-align:right;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lv-list .lv-empty{padding:30px 8px;border:0;text-align:center;color:var(--muted);font-size:12.5px;cursor:default}
+.lv-list .lv-empty:hover{background:none}
+.lv-ft{display:flex;align-items:center;gap:8px;padding:11px 16px;border-top:1px solid var(--line-2);background:var(--panel-2)}
+.lv-tip{flex:1;min-width:0;font-size:11px;color:var(--muted)}
+.lv-ft .btn{padding:6px 12px;font-size:12.5px;flex:none}
 
 /* ---- 抽测数量 ---- */
 .set label .mini{float:right;margin:-2px 0 0 0;padding:0 8px;line-height:15px;font-size:10.5px}
@@ -407,6 +461,14 @@ body.adj-open #toast{bottom:250px}
   .resume .rs-txt{flex:1 1 120px}
   .resume .rs-txt span{white-space:normal;line-height:1.5}
   .sessbar{flex-wrap:wrap}
+  .libview{padding:10px}
+  .lv-box{max-height:88vh;border-radius:14px}
+  .lv-hd{padding:13px 13px 8px}
+  .lv-bar{padding:0 13px 9px}
+  .li-w{max-width:46%}
+  .lv-ft{padding:10px 13px;flex-wrap:wrap}
+  .lv-tip{flex:1 1 100%;margin-bottom:2px}
+  .lv-ft .btn{flex:1}
 }
 
 /* ============ 视图切换 ============ */
@@ -572,20 +634,20 @@ body.adj-open #toast{bottom:250px}
         <button class="btn" id="btnLibShow" type="button">显示词库</button>
       </div>
 
-      <!-- 已保存词库：多个词库并存，随时切换 -->
-      <div class="saved">
-        <div class="saved-hd">
-          <span class="saved-lbl">已保存词库</span>
-          <span class="saved-n" id="libTotal">共 1 个</span>
+      <!-- 已保存词库：独立板块，逐个列出，点眼睛可预览单词 -->
+      <div class="shelf">
+        <div class="shelf-hd">
+          <span class="shelf-lbl">已保存词库</span>
+          <span class="shelf-n" id="libTotal">共 1 个</span>
         </div>
-        <select id="selLib" title="切换词库"></select>
+        <ul class="shelf-list" id="libShelf"></ul>
+        <p class="saved-meta" id="libMeta">词库保存在本机浏览器，换设备请先导出。</p>
         <div class="saved-acts">
           <button class="mini" id="btnLibRename" type="button" title="给当前词库改名">改名</button>
           <button class="mini" id="btnLibCopy" type="button" title="复制当前词库为新词库">另存为</button>
           <button class="mini" id="btnLibExport" type="button" title="导出当前词库（JSON / TXT）">导出</button>
           <button class="mini" id="btnLibDel" type="button" title="删除当前词库">删除</button>
         </div>
-        <p class="saved-meta" id="libMeta">词库保存在本机浏览器，换设备请先导出。</p>
       </div>
 
       <div class="field">
@@ -599,8 +661,6 @@ mutual,相互的"></textarea>
         <input type="text" id="libName" placeholder="新词库名称（留空自动命名）" autocomplete="off">
         <div class="row-btns">
           <button class="btn gold" id="btnImport">存为新词库</button>
-          <button class="btn" id="btnAppend">追加到当前</button>
-          <button class="btn" id="btnFill">回填现词库</button>
         </div>
       </div>
 
@@ -914,6 +974,30 @@ mutual,相互的"></textarea>
 
 <div id="toast"></div>
 
+<!-- 词库预览：点「已保存词库」里的小眼睛打开 -->
+<div class="libview" id="libView" hidden>
+  <div class="lv-mask" id="lvMask"></div>
+  <div class="lv-box" role="dialog" aria-modal="true" aria-labelledby="lvName">
+    <div class="lv-hd">
+      <div class="lv-title">
+        <b id="lvName">词库</b>
+        <span id="lvMeta">0 词</span>
+      </div>
+      <button class="lv-x" id="lvClose" type="button" title="关闭">×</button>
+    </div>
+    <div class="lv-bar">
+      <input type="text" id="lvSearch" placeholder="搜索单词或释义…" autocomplete="off" spellcheck="false">
+      <span class="lv-count" id="lvCount"></span>
+    </div>
+    <ul class="lv-list" id="lvList"></ul>
+    <div class="lv-ft">
+      <span class="lv-tip">点任意一行发音</span>
+      <button class="btn" id="lvExport" type="button">导出</button>
+      <button class="btn gold" id="lvUse" type="button">切换到这个词库</button>
+    </div>
+  </div>
+</div>
+
 <div class="soundbar" id="soundBar">
   <span class="ico">🔇</span>
   <div class="txt">
@@ -960,6 +1044,7 @@ let cdTimer = null, nextTimer = null;
 let pendingSession = null;   // 存过但还没恢复的进度快照
 let savedSig = "";           // 保存那一刻的状态签名
 let savedAt = 0;             // 保存时间
+let libViewId = null;        // 正在预览的词库 id（null = 关闭）
 const audioCache = new Map();
 
 const CJK = /[\u3400-\u4dbf\u4e00-\u9fa5]/;
@@ -1050,20 +1135,85 @@ function uniqueLibName(base, exceptId) {
   while (libNameExists(n + "(" + i + ")", exceptId)) i++;
   return n + "(" + i + ")";
 }
-function renderLibSelect() {
-  const sel = $("#selLib");
-  if (!sel) return;
-  sel.innerHTML = libs.map(l =>
-    '<option value="' + l.id + '">' + esc(l.name) + "（" + l.words.length + " 词）</option>"
-  ).join("");
-  sel.value = activeId;
+const EYE_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"' +
+  ' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+  '<path d="M2.2 12s3.6-6.4 9.8-6.4S21.8 12 21.8 12s-3.6 6.4-9.8 6.4S2.2 12 2.2 12z"/>' +
+  '<circle cx="12" cy="12" r="2.7"/></svg>';
+
+/** 已保存词库板块：一行一个词库，点行切换、点眼睛预览 */
+function renderLibs() {
+  const ul = $("#libShelf");
+  if (!ul) return;
+  ul.innerHTML = libs.length
+    ? libs.map(l => {
+      const on = l.id === activeId;
+      return '<li class="lib-row' + (on ? " on" : "") + '" data-id="' + esc(l.id) + '">' +
+        '<button class="lr-main" type="button" data-act="use" title="' +
+        (on ? "当前使用的词库" : "切换到这个词库") + '">' +
+        '<span class="lr-name">' + esc(l.name) + "</span>" +
+        (on ? '<span class="lr-cur">当前</span>' : "") +
+        '<span class="lr-n">' + l.words.length + " 词</span>" +
+        "</button>" +
+        '<button class="lr-eye" type="button" data-act="view" title="预览这个词库的 ' +
+        l.words.length + ' 个单词">' + EYE_SVG + "</button>" +
+        "</li>";
+    }).join("")
+    : '<li class="lib-row"><span class="lr-name" style="padding:6px 8px;font-weight:400">还没有词库</span></li>';
+
   const n = $("#libTotal");
   if (n) n.textContent = "共 " + libs.length + " 个";
   const meta = $("#libMeta");
   const l = activeLib();
   if (meta && l) {
-    meta.textContent = "「" + l.name + "」" + l.words.length + " 词 · 创建于 " + fmtDate(l.createdAt) + " · 存在本机浏览器";
+    meta.textContent = "当前「" + l.name + "」" + l.words.length + " 词 · " + fmtDate(l.createdAt) + " 创建";
   }
+  if (libViewId) renderLibView();
+}
+
+/* ---------------- 词库预览 ---------------- */
+function openLibView(id) {
+  // 词库被遮住时（测试中）不准开预览，否则等于把答案摊开
+  if (libMasked) { toast("词库已隐藏，测试中不显示单词"); return; }
+  const l = libs.find(x => x.id === id);
+  if (!l) return;
+  libViewId = l.id;
+  $("#lvSearch").value = "";
+  $("#libView").hidden = false;
+  renderLibView();
+  setTimeout(() => { try { $("#lvSearch").focus(); } catch (e) { } }, 30);
+}
+function closeLibView() {
+  if (!libViewId) return;
+  libViewId = null;
+  $("#libView").hidden = true;
+  stopPlayback();
+}
+function renderLibView() {
+  const l = libs.find(x => x.id === libViewId);
+  if (!l) { closeLibView(); return; }
+  const all = l.words || [];
+  const q = ($("#lvSearch").value || "").trim().toLowerCase();
+  const rows = all
+    .map((x, i) => ({ x, i }))
+    .filter(o => !q || ((o.x.w || "") + " " + (o.x.d || "")).toLowerCase().indexOf(q) >= 0);
+
+  $("#lvName").textContent = l.name;
+  $("#lvMeta").textContent = all.length + " 词 · " + fmtDate(l.createdAt) + " 创建";
+  $("#lvCount").textContent = q ? rows.length + " / " + all.length : all.length + " 个";
+  const use = $("#lvUse");
+  use.textContent = l.id === activeId ? "当前正在使用" : "切换到这个词库";
+  use.disabled = l.id === activeId;
+
+  const ul = $("#lvList");
+  ul.innerHTML = rows.length
+    ? rows.slice(0, 1200).map(o =>
+      '<li data-w="' + esc(o.x.w) + '">' +
+      '<span class="li-i">' + String(o.i + 1).padStart(2, "0") + "</span>" +
+      '<span class="li-w">' + esc(o.x.w) + "</span>" +
+      '<span class="li-d">' + esc(o.x.d || "—") + "</span></li>"
+    ).join("") + (rows.length > 1200 ? '<li class="lv-empty">还有 ' + (rows.length - 1200) + " 个词未列出，用搜索缩小范围</li>" : "")
+    : '<li class="lv-empty">' + (all.length ? "没有匹配「" + esc(q) + "」的单词" : "这个词库还是空的") + "</li>";
+  ul.scrollTop = 0;
 }
 function resetRoundUI() {
   started = false; finished = false; revealed = false; playing = false;
@@ -1083,11 +1233,14 @@ function switchLib(id) {
   if (id === activeId) return;
   const l = libs.find(x => x.id === id);
   if (!l) return;
+  // 测试中途换词库等于放弃本轮，先拦一道
+  if (started && !finished && queue.length &&
+    !confirm("正在测试中，切到「" + l.name + "」会结束本轮（进度不会保存）。确定切换？")) return;
   persistLibs();
   activeId = l.id;
   words = l.words;
   try { localStorage.setItem(LS.active, activeId); } catch (e) { }
-  renderLibSelect();
+  renderLibs();
   resetRoundUI();
   toast("已切换到「" + l.name + "」· " + words.length + " 词");
 }
@@ -1100,7 +1253,7 @@ function createLib(name, list) {
   activeId = lib.id;
   words = lib.words;
   persistLibs();
-  renderLibSelect();
+  renderLibs();
   resetRoundUI();
   return lib;
 }
@@ -1113,7 +1266,7 @@ function renameActiveLib() {
   if (!n) { toast("名字不能为空"); return; }
   if (libNameExists(n, l.id)) { toast("已有同名词库"); return; }
   l.name = n;
-  persistLibs(); renderLibSelect(); syncGate();
+  persistLibs(); renderLibs(); syncGate();
   toast("已改名为「" + n + "」");
 }
 function dupActiveLib() {
@@ -1127,7 +1280,7 @@ function dupActiveLib() {
   libs.push(copy);
   activeId = copy.id;
   words = copy.words;
-  persistLibs(); renderLibSelect(); resetRoundUI();
+  persistLibs(); renderLibs(); resetRoundUI();
   toast("已另存为「" + copy.name + "」");
 }
 function delActiveLib() {
@@ -1136,7 +1289,7 @@ function delActiveLib() {
   if (libs.length === 1) {
     if (!confirm("这是最后一个词库。删除会把里面的 " + words.length + " 个词清空，确定？")) return;
     words.length = 0;
-    persistLibs(); renderLibSelect(); resetRoundUI();
+    persistLibs(); renderLibs(); resetRoundUI();
     toast("词库已清空");
     return;
   }
@@ -1146,7 +1299,7 @@ function delActiveLib() {
   const next = libs[Math.max(0, i - 1)];
   activeId = next.id;
   words = next.words;
-  persistLibs(); renderLibSelect(); resetRoundUI();
+  persistLibs(); renderLibs(); resetRoundUI();
   toast("已删除，当前为「" + next.name + "」");
 }
 function downloadText(filename, text, mime) {
@@ -1160,18 +1313,18 @@ function downloadText(filename, text, mime) {
 function safeName(s) {
   return String(s || "词库").replace(/[\\/:*?"<>|\r\n\t]/g, "_").replace(/\s+/g, " ").trim().slice(0, 50) || "词库";
 }
-function exportActiveLib(asTxt) {
-  const l = activeLib();
-  if (!l || !words.length) { toast("词库是空的"); return; }
+function exportLib(l, asTxt) {
+  if (!l || !l.words.length) { toast("词库是空的"); return; }
   const base = "词库-" + safeName(l.name) + "-" + fmtDate(Date.now());
   if (asTxt) {
-    downloadText(base + ".txt", words.map(it => it.w + (it.d ? " " + it.d : "")).join("\n") + "\n");
+    downloadText(base + ".txt", l.words.map(it => it.w + (it.d ? " " + it.d : "")).join("\n") + "\n");
     toast("已导出 TXT（可直接粘回导入框）");
   } else {
-    downloadText(base + ".json", JSON.stringify(words, null, 2), "application/json");
+    downloadText(base + ".json", JSON.stringify(l.words, null, 2), "application/json");
     toast("已导出 JSON 备份");
   }
 }
+function exportActiveLib(asTxt) { exportLib(activeLib(), asTxt); }
 
 /* ---------------- 解析 ---------------- */
 function parseLine(line) {
@@ -2186,7 +2339,7 @@ function resumeSession() {
     activeId = s.libId;
     words = activeLib().words;
     try { localStorage.setItem(LS.active, activeId); } catch (e) { }
-    renderLibSelect();
+    renderLibs();
   }
   const used = new Set(), q = [], mk = {};
   let miss = 0;
@@ -2235,7 +2388,10 @@ function paintList() {
   paintCountTip();               // 换词库后「抽测数量」提示也要跟着变
   const meta = $("#libMeta");
   const lib = activeLib();
-  if (meta && lib) meta.textContent = "「" + lib.name + "」" + words.length + " 词 · 创建于 " + fmtDate(lib.createdAt) + " · 存在本机浏览器";
+  if (meta && lib) meta.textContent = "当前「" + lib.name + "」" + words.length + " 词 · " + fmtDate(lib.createdAt) + " 创建";
+  // 板块里当前词库那行的词数也跟着变（删词/导入后不同步会很难看）
+  const rowN = $("#libShelf .lib-row.on .lr-n");
+  if (rowN) rowN.textContent = words.length + " 词";
   if (!words.length) {
     ul.innerHTML = '<li class="empty">这个词库还是空的<br>上方粘贴后点「存为新词库」</li>';
     return;
@@ -2442,7 +2598,7 @@ function loadSample() {
     activeId = exist.id;
     words = exist.words;
     persistLibs();
-    renderLibSelect();
+    renderLibs();
     resetRoundUI();
     return exist;
   }
@@ -2674,12 +2830,41 @@ function bind() {
   /* 词库 */
   $("#btnLibToggle").onclick = () => askLibMask(!libMasked);
   $("#btnLibShow").onclick = () => askLibMask(false);
-  $("#selLib").onchange = e => switchLib(e.target.value);
   $("#btnLibRename").onclick = renameActiveLib;
   $("#btnLibCopy").onclick = dupActiveLib;
   $("#btnLibDel").onclick = delActiveLib;
   $("#btnLibExport").onclick = e => exportActiveLib(!!e.shiftKey);
   $("#btnLibExport").title = "导出当前词库（JSON 备份；按住 Shift 导出 TXT）";
+
+  /* 已保存词库：点行切换 / 点眼睛预览 */
+  $("#libShelf").onclick = e => {
+    const row = e.target.closest(".lib-row");
+    if (!row || !row.dataset.id) return;
+    const btn = e.target.closest("[data-act]");
+    if (btn && btn.dataset.act === "view") { openLibView(row.dataset.id); return; }
+    if (row.dataset.id === activeId) { toast("已经在用这个词库了"); return; }
+    switchLib(row.dataset.id);
+  };
+  /* 词库预览 */
+  $("#lvClose").onclick = closeLibView;
+  $("#lvMask").onclick = closeLibView;
+  $("#lvSearch").oninput = renderLibView;
+  $("#lvList").onclick = e => {
+    const li = e.target.closest("li[data-w]");
+    if (!li) return;
+    stopPlayback();
+    speakOnce(li.dataset.w);
+  };
+  $("#lvUse").onclick = () => {
+    const id = libViewId;
+    closeLibView();
+    if (id) switchLib(id);
+  };
+  $("#lvExport").onclick = e => {
+    const l = libs.find(x => x.id === libViewId);
+    if (l) exportLib(l, !!e.shiftKey);
+  };
+  $("#lvExport").title = "导出这个词库（JSON 备份；按住 Shift 导出 TXT）";
 
   $("#btnImport").onclick = () => {
     const list = parseBulk($("#bulk").value);
@@ -2689,22 +2874,6 @@ function bind() {
     $("#bulk").value = "";
     $("#libName").value = "";
     toast("已存为新词库「" + lib.name + "」· " + list.length + " 词");
-  };
-  $("#btnAppend").onclick = () => {
-    const list = parseBulk($("#bulk").value);
-    if (!list.length) { toast("没有解析到内容"); return; }
-    words = words.concat(list);
-    saveWords();
-    $("#bulk").value = "";
-    setLibMasked(false);
-    renderLibSelect(); paintList(); resetCounter(); syncGate();
-    toast("已追加 " + list.length + " 个，共 " + words.length + " 个");
-  };
-  $("#btnFill").onclick = () => {
-    setLibMasked(false);
-    $("#bulk").value = words.map(it => it.w + " " + it.d).join("\n");
-    $("#bulk").focus();
-    toast("已回填，改完点「存为新词库」或「追加到当前」");
   };
   $("#btnSample").onclick = () => {
     const lib = loadSample();
@@ -2848,13 +3017,16 @@ function bind() {
   };
 
   /* 键盘 */
-  // 微调面板打开时，Esc 关掉它（在听测视图也要生效）
+  // 子弹窗优先：预览开着时 Esc 先关预览，别顺手把测试也点了
   document.addEventListener("keydown", e => {
-    if (e.key === "Escape" && SP.adj) { spCloseAdj(); }
+    if (e.key !== "Escape") return;
+    if (libViewId) { closeLibView(); return; }
+    if (SP.adj) { spCloseAdj(); }
   });
 
   document.addEventListener("keydown", e => {
     if (viewName !== "listen") return;
+    if (libViewId) return;          // 预览弹窗里只走输入框自己的按键
     const tag = (e.target.tagName || "").toLowerCase();
     if (tag === "input" || tag === "textarea" || tag === "select") return;
     const gateOpen = !$("#gateStart").classList.contains("hide");
@@ -4105,6 +4277,7 @@ function switchView(name) {
   $("#viewListen").hidden = name !== "listen";
   $("#viewSplit").hidden = name !== "split";
   $("#viewWrong").hidden = name !== "wrong";
+  if (libViewId) closeLibView();
   if (name !== "split" && SP.adj) spCloseAdj();
   if (name === "listen") {
     spStop();
@@ -4290,7 +4463,7 @@ function init() {
   window.addEventListener("dragover", e => e.preventDefault());
   window.addEventListener("drop", e => { if (!e.defaultPrevented) e.preventDefault(); });
   syncSettingsUI();
-  renderLibSelect();
+  renderLibs();
   paintList();
   resetCounter();
   syncGate();
