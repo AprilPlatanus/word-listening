@@ -718,7 +718,6 @@ mutual,相互的"></textarea>
 
         <div class="actions">
           <button class="btn" id="btnPrev">← 上一题</button>
-          <button class="btn" id="btnReplay">重播</button>
           <button class="btn" id="btnReveal">直接看释义</button>
           <button class="btn gold" id="btnNext">下一题 →</button>
         </div>
@@ -2295,7 +2294,7 @@ function paintStage() {
       $("#status").innerHTML = "⚠ 本轮没有音频 · 已直接显示拼写";
     } else {
       $("#status").textContent = total
-        ? (revealed ? "释义已显示 · 可重播或继续" : "点圆形按钮再听一遍")
+        ? (revealed ? "释义已显示 · 可再听一遍或继续" : "点圆形按钮再听一遍")
         : "点击开始，听发音后回忆释义";
     }
   }
@@ -2807,15 +2806,10 @@ function bind() {
   $("#chkShuffle").onchange = e => { cfg.shuffle = e.target.checked; saveCfg(); syncGate(); };
   $("#chkAutoNext").onchange = e => { cfg.autoNext = e.target.checked; saveCfg(); };
 
-  /* 播放控制 */
+  /* 播放控制（只有圆形按钮和空格键，别再加重复的「重播」） */
   $("#btnPlay").onclick = () => {
     if (!started) { startSession(false); return; }
     retryAudioIfDead();      // 用户主动点播放＝新的一次机会
-    playSequence(true);
-  };
-  $("#btnReplay").onclick = () => {
-    if (!started) { startSession(false); return; }
-    retryAudioIfDead();
     playSequence(true);
   };
   $("#btnReveal").onclick = () => {
