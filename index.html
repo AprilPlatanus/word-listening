@@ -286,7 +286,7 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:#fff
 .wrong-layout{display:grid;grid-template-columns:minmax(0,1fr) 306px;gap:18px;align-items:start}
 .wr-main{padding:18px}
 .wr-side{padding:16px;position:sticky;top:18px}
-.wr-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:2px 0 14px}
+.wr-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:2px 0 14px;max-width:400px}
 .wr-stat{padding:10px 12px;border:1px solid var(--line-2);border-radius:12px;background:var(--panel-2)}
 .wr-stat b{display:block;font-size:19px;font-weight:650;font-variant-numeric:tabular-nums;line-height:1.2}
 .wr-stat span{font-size:11px;color:var(--muted)}
@@ -304,6 +304,23 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:#fff
 .wr-hd .m{font-size:11.5px;color:var(--muted);margin-top:2px}
 .wr-btns{display:flex;gap:6px;flex-wrap:wrap}
 .wr-btns .btn{padding:4px 9px;font-size:11.5px;border-radius:8px}
+/* 每条测试记录可折叠：点日期那一栏（或左侧小箭头）收起 / 展开本次错词 */
+.wr-tgl{display:flex;align-items:flex-start;gap:8px;flex:1 1 auto;min-width:0;
+  padding:0;margin:0;background:none;border:0;font:inherit;color:inherit;text-align:left;cursor:pointer}
+.wr-tgl .car{flex:none;width:0;height:0;margin-top:6px;
+  border-top:6px solid #b3a390;border-left:4.5px solid transparent;border-right:4.5px solid transparent;
+  transition:transform .18s ease}
+.wr-tgl .car.blank{border:0;width:8px;height:0;margin-top:0}
+.wr-tgl:hover .car:not(.blank){border-top-color:var(--gold-d)}
+.wr-tgl .hd{display:block;min-width:0}
+.wr-tgl .t{display:block}
+.wr-tgl .m{display:block}
+.wr-item.folded{padding-bottom:10px}
+.wr-item.folded .wr-hd{align-items:center}
+.wr-item.folded .wr-tgl .car{transform:rotate(-90deg)}
+.wr-item.folded .wr-tgl .m::after{content:" · 已收起";color:#bfb3a1}
+.wr-item.folded .wr-rows{display:none}
+.wr-item.folded .wr-tgl .t .badge{opacity:.75}
 /* 错词按行列出：红色 = 忘了，黄色 = 模糊 */
 .wr-legend{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:4px 0 12px;
   font-size:11.5px;color:var(--muted)}
@@ -930,12 +947,8 @@ mutual,相互的"></textarea>
       </div>
 
       <div class="wr-stats" id="wrStats">
-        <div class="wr-stat bad" title="按单词去重：同一个词错过多次，也只算 1 个">
-          <b id="wrWrong">0</b><span>错词总数（去重）</span></div>
         <div class="wr-stat" title="做过几轮听测（含提前结束的）">
           <b id="wrTimes">0</b><span>测试次数</span></div>
-        <div class="wr-stat warn" title="一共点过多少次「模糊 / 忘了」：同一个词错两次会算 2 次">
-          <b id="wrVague">0</b><span>标记次数</span></div>
         <div class="wr-stat" title="最近一次测试的时间">
           <b id="wrLast">—</b><span>最近一次</span></div>
       </div>
@@ -943,6 +956,7 @@ mutual,相互的"></textarea>
       <div class="wr-acts">
         <button class="btn gold" id="btnWrExport">导出全部错题 CSV</button>
         <button class="btn" id="btnWrToLib">全部错词 → 新词库</button>
+        <button class="btn" id="btnWrFoldAll" hidden>收起全部</button>
         <button class="btn" id="btnWrClear">清空记录</button>
       </div>
 
@@ -961,7 +975,7 @@ mutual,相互的"></textarea>
         <span class="badge" id="wrTopBadge">—</span>
       </div>
       <ol class="wrtop" id="wrTopList"></ol>
-      <p class="hint" style="margin-top:10px">点任意词可听发音。「错词总数」按单词去重，一个词错几次都只算 1 个；「标记次数」按点了多少次算，错两次就是 2 次。</p>
+      <p class="hint" style="margin-top:10px">点任意词可听发音。每次测试的错词都可以点日期那一栏（或左侧小箭头）收起 / 展开，最近一次默认展开，方便先看最新的。</p>
     </aside>
   </section>
 
@@ -3264,14 +3278,24 @@ function dedupeEntries(items) {
   });
   return out;
 }
+// 折叠状态：wrOpen 存「展开中」的测试记录 id，wrSeen 存已出现过的 id
+const wrOpen = new Set();
+let wrSeen = null;
+function syncWrFoldAll() {
+  const btn = $("#btnWrFoldAll");
+  if (!btn) return;
+  const items = Array.from(document.querySelectorAll("#wrList .wr-item"))
+    .filter(it => it.querySelector(".wr-rows"));
+  btn.hidden = !items.length;
+  const anyOpen = items.some(it => !it.classList.contains("folded"));
+  btn.textContent = anyOpen ? "收起全部" : "展开全部";
+}
 function renderWrongBook() {
   const box = $("#wrList");
   if (!box) return;
   const st = wrongStats();
   const uniq = st.list.length;
-  $("#wrWrong").textContent = uniq;
   $("#wrTimes").textContent = records.length;
-  $("#wrVague").textContent = st.marks;
   const last = records.reduce((m, r) => Math.max(m, r.ts || 0), 0);
   $("#wrLast").textContent = last ? fmtDate(last, true).slice(5) : "—";
   $("#wrBadge").textContent = uniq + " 个错词";
@@ -3294,12 +3318,25 @@ function renderWrongBook() {
       '<br><button class="btn gold" id="btnWrGoListen">去听测 →</button></div>';
     const go = $("#btnWrGoListen");
     if (go) go.onclick = () => switchView("listen");
+    syncWrFoldAll();
     return;
   }
 
   const rows = records.slice().sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  // 首次进入只展开最近一次，历史记录默认收起；之后新产生的记录自动展开
+  const ids = rows.map(r => r.id);
+  if (!wrSeen) {
+    wrSeen = new Set(ids);
+    const newestWrong = rows.find(r => (r.wrong || []).length);   // 最近一次有错词的
+    if (newestWrong) wrOpen.add(newestWrong.id);
+  } else {
+    ids.forEach(id => { if (!wrSeen.has(id)) { wrSeen.add(id); wrOpen.add(id); } });
+    Array.from(wrOpen).forEach(id => { if (ids.indexOf(id) < 0) wrOpen.delete(id); });
+  }
+
   box.innerHTML = rows.map(r => {
     const wrong = r.wrong || [];
+    const open = !wrong.length || wrOpen.has(r.id);
     const list = wrong.map(it => {
       const forgot = it.mark === "forgot";
       return '<button type="button" class="wrow ' + (forgot ? "forgot" : "vague") + '" data-w="' + esc(it.w) + '" title="点一下听发音">' +
@@ -3309,20 +3346,27 @@ function renderWrongBook() {
         '<span class="sp">🔊</span>' +
       "</button>";
     }).join("");
-    return '<div class="wr-item" data-id="' + r.id + '">' +
-      '<div class="wr-hd"><div>' +
-        '<div class="t">' + fmtDate(r.ts, true) + ' <span class="badge" style="background:#fdecea;color:#b4453b">' + wrong.length + " 个错词</span></div>" +
-        '<div class="m">' + (r.libName ? "「" + esc(r.libName) + "」· " : "") + "共 " + r.total + " 词" +
+    const hdInner = (wrong.length ? '<span class="car"></span>' : '<span class="car blank"></span>') + '<span class="hd">' +
+        '<span class="t">' + fmtDate(r.ts, true) + " " + (wrong.length
+          ? '<span class="badge" style="background:#fdecea;color:#b4453b">' + wrong.length + " 个错词</span>"
+          : '<span class="badge" style="background:#eaf7ec;color:#3d7a4b">全对</span>') + "</span>" +
+        '<span class="m">' + (r.libName ? "「" + esc(r.libName) + "」· " : "") + "共 " + r.total + " 词" +
           (r.early ? " · 提前结束，答 " + (r.done || 0) + " 个" : "") +
-          " · 记得 " + r.know + " / 模糊 " + r.vague + " / 忘了 " + r.forgot + "</div>" +
-      "</div><div class=\"wr-btns\">" +
+          " · 记得 " + r.know + " / 模糊 " + r.vague + " / 忘了 " + r.forgot + "</span>" +
+      "</span>";
+    const hd = wrong.length
+      ? '<button type="button" class="wr-tgl" data-act="fold" aria-expanded="' + open + '" title="展开 / 收起这次测试的错词">' + hdInner + '</button>'
+      : '<div class="wr-tgl" style="cursor:default">' + hdInner + '</div>';
+    return '<div class="wr-item' + (open ? "" : " folded") + '" data-id="' + r.id + '">' +
+      '<div class="wr-hd">' + hd + '<div class="wr-btns">' +
         (wrong.length ? '<button class="btn" data-act="retest">重练这 ' + wrong.length + " 个</button>" +
-                        '<button class="btn" data-act="csv">导出 CSV</button>' : '<span class="muted" style="font-size:11.5px;color:var(--ok)">全对 🎉</span>') +
+                        '<button class="btn" data-act="csv">导出 CSV</button>' : "") +
         '<button class="btn" data-act="del">删除</button>' +
       "</div></div>" +
       (wrong.length ? '<div class="wr-rows">' + list + "</div>" : "") +
     "</div>";
   }).join("");
+  syncWrFoldAll();
 }
 function retestWrong(entries, label) {
   if (!entries.length) { toast("没有可重练的错词"); return; }
@@ -3356,6 +3400,19 @@ function exportWrongCSV(one) {
 }
 function bindWrongBook() {
   $("#btnWrExport").onclick = () => exportWrongCSV(null);
+  $("#btnWrFoldAll").onclick = () => {
+    const items = Array.from(document.querySelectorAll("#wrList .wr-item"))
+      .filter(it => it.querySelector(".wr-rows"));
+    if (!items.length) return;
+    const anyOpen = items.some(it => !it.classList.contains("folded"));
+    items.forEach(it => {
+      it.classList.toggle("folded", anyOpen);
+      const tgl = it.querySelector(".wr-tgl");
+      if (tgl) tgl.setAttribute("aria-expanded", String(!anyOpen));
+      if (anyOpen) wrOpen.delete(it.dataset.id); else wrOpen.add(it.dataset.id);
+    });
+    syncWrFoldAll();
+  };
   $("#btnWrToLib").onclick = () => {
     const st = wrongStats();
     retestWrong(st.list.map(o => ({ w: o.w, d: o.d })), "全部 " + fmtDate(Date.now(), true).slice(5));
@@ -3365,6 +3422,8 @@ function bindWrongBook() {
     if (!confirm("清空全部 " + records.length + " 条测试记录？此操作不可恢复，建议先导出 CSV。")) return;
     records = [];
     saveRecords();
+    wrOpen.clear();
+    wrSeen = new Set();
     renderWrongBook();
     toast("错题记录已清空");
   };
@@ -3377,7 +3436,14 @@ function bindWrongBook() {
     if (!rec) return;
     const act = (e.target.closest("button[data-act]") || {}).dataset;
     if (!act || !act.act) return;
-    if (act.act === "retest") {
+    if (act.act === "fold") {
+      const folded = !item.classList.contains("folded");
+      item.classList.toggle("folded", folded);
+      if (folded) wrOpen.delete(item.dataset.id); else wrOpen.add(item.dataset.id);
+      const tgl = item.querySelector(".wr-tgl");
+      if (tgl) tgl.setAttribute("aria-expanded", String(!folded));
+      syncWrFoldAll();
+    } else if (act.act === "retest") {
       retestWrong(dedupeEntries(rec.wrong || []), fmtDate(rec.ts, true).slice(5));
     } else if (act.act === "csv") {
       exportWrongCSV(rec);
