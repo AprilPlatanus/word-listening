@@ -1801,7 +1801,7 @@ function speakUtterance(text, voice, watchdogMs, trustBusy, gen) {
     const trustIdle = trustBusy !== false;
     const rate = Math.min(2, Math.max(0.5, Number(cfg.rate) || 1));
     let done = false, started = false, startAt = 0, startTimer = null, endTimer = null;
-    let cutTimer = null, idleTicks = 0;
+    let cutTimer = null, idleTicks = 0, graceUsed = false;
 
     const u = new SpeechSynthesisUtterance(text);
     u.rate = rate; u.pitch = 1; u.volume = 1;
@@ -1859,18 +1859,25 @@ function speakUtterance(text, voice, watchdogMs, trustBusy, gen) {
       fin(false, (e && e.error) || "error");
     };
 
-    // 起播看门狗：这段时间内必须有动静，否则判定这条音色不通
-    startTimer = setTimeout(() => {
-      if (started || done) return;
-      let busy = false;
-      try { busy = !!synth.speaking || !!synth.pending; } catch (e) { }
-      // 只有当「说这句之前队列是空的」时，synth.speaking 才可信。
-      // 队列本来就卡着的话，busy=false 才有意义，否则会把卡死误判成正在播。
-      if (busy && trustIdle) {   // 引擎说在播：不重试，否则会读两遍
-        started = true; startAt = Date.now(); armEndGuard(); armCutGuard(); return;
-      }
-      fin(false, "nostart");
-    }, watchdogMs || 2200);
+    // 起播看门狗：这段时间内必须有动静，否则判定这条音色不通。
+    // 队列本来就不干净时（Safari 常见：上一句的 speaking 残留），speaking 不可信，
+    // 先多给 1.2 秒宽限；仍然一片安静才判「没起播」，免得把正在播的句子误杀成少一遍。
+    const armStartWatch = (ms) => {
+      clearTimeout(startTimer);
+      startTimer = setTimeout(() => {
+        if (started || done) return;
+        let busy = false;
+        try { busy = !!synth.speaking || !!synth.pending; } catch (e) { }
+        if (busy) {
+          if (trustIdle || graceUsed) {   // 引擎说在播：不重试，否则会读两遍
+            started = true; startAt = Date.now(); armEndGuard(); armCutGuard(); return;
+          }
+          graceUsed = true; armStartWatch(1200); return;
+        }
+        fin(false, "nostart");
+      }, ms);
+    };
+    armStartWatch(watchdogMs || 2200);
 
     // 到这里可能已经过了几百毫秒（等音色加载），再确认一次这一轮还没被顶掉
     if (gen != null && gen !== speakGen) { fin(false, "stale"); return; }
@@ -2213,9 +2220,16 @@ async function playSequence(autoReveal) {
 
   for (let i = 0; i < total; i++) {
     if (my !== token) return;
+    if (audioDead) break;            // 这一轮彻底没声了：别再空等，直接揭晓
     paintDots(i, total);
     repInFlight = true;
-    await speakOnce(item.w);
+    let r = await speakOnce(item.w);
+    /* 这一遍没出声就补读一次：音色没起播、语句被引擎吞掉、在线地址刚好超时，
+       都会让这一遍静悄悄地「少掉」。设置了几遍就得听够几遍。 */
+    if (my === token && r && r.ok === false && r.via !== "stale" && !audioDead) {
+      await sleep(180);
+      if (my === token) r = await speakOnce(item.w);
+    }
     repInFlight = false;
     if (my !== token) return;
     if (i < total - 1 && gap > 0) {
