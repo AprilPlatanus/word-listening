@@ -237,6 +237,28 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:#fff
 .bar{height:3px;border-radius:3px;background:var(--line-2);overflow:hidden;margin-bottom:2px}
 .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#d9b98a,#a4762f);border-radius:3px;transition:width .45s cubic-bezier(.3,.8,.3,1)}
 
+/* 上次进度 / 本轮操作条 */
+.resume{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;padding:8px 11px;
+  border:1px solid #e8d5b6;border-radius:11px;background:linear-gradient(180deg,#fdf8ef,#fbf1e1)}
+.resume[hidden]{display:none}
+.resume .rs-ico{width:22px;height:22px;flex:none;display:grid;place-items:center;border-radius:50%;
+  background:#f3e4c8;color:var(--gold-d);font-size:13px;line-height:1}
+.resume .rs-txt{min-width:0;flex:1 1 150px;display:flex;flex-direction:column;gap:2px}
+.resume .rs-txt b{font-size:12.5px;font-weight:650;color:var(--ink)}
+.resume .rs-txt span{font-size:11.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.resume .rs-acts{display:flex;gap:6px;margin-left:auto;flex:none}
+
+.sessbar{display:flex;align-items:center;gap:10px;margin-top:8px;padding:5px 10px;
+  background:var(--panel-2);border:1px solid var(--line-2);border-radius:10px}
+.sv-hint{font-size:11.5px;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sv-hint .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#cfc3ae;margin-right:5px;vertical-align:1px}
+.sv-hint.live .dot{background:var(--gold)}
+.sv-hint.saved .dot{background:var(--ok)}
+.sv-hint.dirty .dot{background:var(--warn)}
+.sessbar .rs-acts,.sessbar .sv-acts{display:flex;gap:6px;margin-left:auto;flex:none}
+.btn.sv{padding:5px 10px;font-size:11.5px;border-radius:8px}
+.btn.sv.end:not(:disabled):hover{border-color:#e8c6bd;background:#fbeeeb;color:var(--bad)}
+
 /* 设置条 */
 .settings{
   display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;
@@ -382,6 +404,9 @@ body.adj-open #toast{bottom:250px}
   .chips{width:100%;margin-left:0}
   .answer .def{font-size:15px}
   .wr-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .resume .rs-txt{flex:1 1 120px}
+  .resume .rs-txt span{white-space:normal;line-height:1.5}
+  .sessbar{flex-wrap:wrap}
 }
 
 /* ============ 视图切换 ============ */
@@ -595,6 +620,28 @@ mutual,相互的"></textarea>
       </div>
       <div class="bar"><i id="progFill"></i></div>
 
+      <!-- 上次没做完的进度，只有存在快照时才出现 -->
+      <div class="resume" id="resumeBar" hidden>
+        <div class="rs-ico">↺</div>
+        <div class="rs-txt">
+          <b>上次有一轮没做完</b>
+          <span id="rsMeta"></span>
+        </div>
+        <div class="rs-acts">
+          <button class="btn gold sv" id="btnResume" type="button">继续上次</button>
+          <button class="btn sv" id="btnDropResume" type="button">放弃</button>
+        </div>
+      </div>
+
+      <!-- 本轮操作：保存进度 / 结束本轮 -->
+      <div class="sessbar">
+        <span class="sv-hint" id="sessHint"><i class="dot"></i>未开始</span>
+        <div class="sv-acts">
+          <button class="btn sv" id="btnSaveSess" type="button" title="把这轮做到哪、标了什么都存下来，下次打开可以接着做">保存进度</button>
+          <button class="btn sv end" id="btnEndSess" type="button" title="立即结束本轮，已标记的「模糊 / 忘了」会记入错题本">结束本轮</button>
+        </div>
+      </div>
+
       <!-- 设置 -->
       <div class="settings">
         <div class="set wide">
@@ -690,7 +737,7 @@ mutual,相互的"></textarea>
 
         <!-- 结束遮罩 -->
         <div class="gate hide" id="gateEnd">
-          <h3>本轮完成</h3>
+          <h3 id="endTitle">本轮完成</h3>
           <div class="finish-stats">
             <div class="k"><b id="fKnow">0</b><span>记得</span></div>
             <div class="v"><b id="fVague">0</b><span>模糊</span></div>
@@ -891,7 +938,8 @@ const $$ = (s, r = document) => Array.prototype.slice.call(r.querySelectorAll(s)
 
 const LS = {
   words: "wdt.words.v1", cfg: "wdt.cfg.v1",
-  libs: "wdt.libs.v2", active: "wdt.active.v2", records: "wdt.records.v1"
+  libs: "wdt.libs.v2", active: "wdt.active.v2", records: "wdt.records.v1",
+  session: "wdt.session.v1"
 };
 const DEFAULTS = {
   engine: "youdao-us", voice: "", rate: 0.9, repeat: 2, gap: 1,
@@ -910,6 +958,9 @@ let started = false, finished = false;
 let revealed = false, playing = false;
 let token = 0;           // 播放序列令牌，用来中断
 let cdTimer = null, nextTimer = null;
+let pendingSession = null;   // 存过但还没恢复的进度快照
+let savedSig = "";           // 保存那一刻的状态签名
+let savedAt = 0;             // 保存时间
 const audioCache = new Map();
 
 const CJK = /[\u3400-\u4dbf\u4e00-\u9fa5]/;
@@ -1027,6 +1078,7 @@ function resetRoundUI() {
   $("#answer").classList.remove("show");
   $("#veil").classList.remove("hide");
   paintList(); resetCounter(); paintStage(); syncGate();
+  paintSessBar(); paintResumeBar();
 }
 function switchLib(id) {
   if (id === activeId) return;
@@ -1912,6 +1964,17 @@ function shuffleArr(a) {
 
 function startSession(onlyWrong) {
   if (!words.length) { toast("词库是空的，先添加单词"); return; }
+  // 上一份存下的进度还没恢复，开新一轮就等于把它丢掉，先问一句
+  if (pendingSession) {
+    const s = pendingSession;
+    const n = s.items.length;
+    const at = Math.min(Math.max(0, Number(s.pos) || 0), n - 1) + 1;
+    if (!confirm("还有一份没做完的进度（第 " + at + "/" + n + " 个）。\n开始新一轮会把它丢掉，确定吗？")) {
+      paintResumeBar();
+      return;
+    }
+    dropSession(true);
+  }
   let pool = words.map((_, i) => i);
   if (onlyWrong) {
     pool = pool.filter(i => marks[i] === "vague" || marks[i] === "forgot");
@@ -1928,6 +1991,7 @@ function startSession(onlyWrong) {
   queue = cfg.shuffle ? shuffleArr(pool) : pool;
   pos = 0; started = true; finished = false; revealed = false;
   marks = {};
+  savedAt = 0; savedSig = "";      // 新一轮，从「未保存」开始
   resetRemoteStreak();
   setLibMasked(true);            // 开测即收词库，防止看答案
   $("#gateStart").classList.add("hide");
@@ -1965,7 +2029,7 @@ function goPrev() {
   enterItem();
 }
 
-function finishSession() {
+function finishSession(early) {
   started = false; finished = true; playing = false;
   stopPlayback();
   setLibMasked(false);           // 本轮结束，词库恢复显示，方便复盘
@@ -1975,7 +2039,8 @@ function finishSession() {
   $("#fVague").textContent = c.vague;
   $("#fForgot").textContent = c.forgot;
   const total = queue.length;
-  const unmarked = total - c.know - c.vague - c.forgot;
+  const answered = c.know + c.vague + c.forgot;
+  const unmarked = total - answered;
 
   // 错题归档：模糊 / 忘了都算错题，存进本机错题本
   const wrong = queue
@@ -1986,29 +2051,189 @@ function finishSession() {
     records.push({
       id: newId("rec"), ts: Date.now(),
       libName: lib ? lib.name : "",
-      total: total, know: c.know, vague: c.vague, forgot: c.forgot,
+      total: total, done: answered, early: !!early,
+      know: c.know, vague: c.vague, forgot: c.forgot,
       wrong: wrong
     });
     if (records.length > 200) records = records.slice(records.length - 200);
     saveRecords();
   }
   $("#btnEndWrongBook").hidden = wrong.length === 0;
+  $("#endTitle").textContent = early ? "本轮结束" : "本轮完成";
 
-  let txt = "共 " + total + " 个单词";
-  if (unmarked > 0) txt += "，其中 " + unmarked + " 个未标记";
-  if (c.forgot + c.vague > 0) txt += "，已记入错题本。建议只练「模糊 + 忘了」。";
-  else if (c.know === total) txt += "，全部记得，很稳。";
-  else txt += "。";
+  let txt;
+  if (early) {
+    txt = "本轮提前结束：抽了 " + total + " 个，已标记 " + answered + " 个";
+    if (unmarked > 0) txt += "，剩下 " + unmarked + " 个不计入统计";
+    if (wrong.length) txt += "。" + wrong.length + " 个「模糊 / 忘了」已记入错题本。";
+    else txt += "。";
+  } else {
+    txt = "共 " + total + " 个单词";
+    if (unmarked > 0) txt += "，其中 " + unmarked + " 个未标记";
+    if (c.forgot + c.vague > 0) txt += "，已记入错题本。建议只练「模糊 + 忘了」。";
+    else if (c.know === total) txt += "，全部记得，很稳。";
+    else txt += "。";
+  }
   $("#endHint").textContent = txt;
   $("#btnRetryWrong").disabled = (c.forgot + c.vague === 0);
   $("#gateEnd").classList.remove("hide");
+  // 本轮已归档，之前的进度快照作废
+  discardSnapshot();
+  paintSessBar();
   if (viewName === "wrong") renderWrongBook();
+}
+
+/* ---------------- 进度保存 / 继续 ---------------- */
+function normWord(s) { return String(s == null ? "" : s).trim().toLowerCase().replace(/\s+/g, " "); }
+/** 时:分（切分页已有一个 fmtTime 是「秒 → 0:00.0」，别重名） */
+function clockText(ts) {
+  const d = new Date(ts), p = n => String(n).padStart(2, "0");
+  return p(d.getHours()) + ":" + p(d.getMinutes());
+}
+/** 当前状态的指纹：换了题、改了自评都算改动 */
+function sessSig() {
+  if (!started || !queue.length) return "";
+  const ms = Object.keys(marks).filter(k => marks[k]).sort((a, b) => a - b)
+    .map(k => k + ":" + marks[k]).join(",");
+  return queue.join(",") + "|" + pos + "|" + ms;
+}
+function markCount() {
+  return Object.keys(marks).filter(k => marks[k]).length;
+}
+function sessionSnapshot() {
+  if (!started || !queue.length) return null;
+  const lib = activeLib();
+  return {
+    v: 1, ts: Date.now(),
+    libId: activeId, libName: lib ? lib.name : "",
+    pos: pos, total: queue.length, done: markCount(),
+    items: queue.map(i => ({
+      w: (words[i] && words[i].w) || "",
+      d: (words[i] && words[i].d) || "",
+      m: marks[i] || ""
+    }))
+  };
+}
+function saveSession(silent) {
+  const snap = sessionSnapshot();
+  if (!snap) { if (!silent) toast("还没有开始测试，没有进度可存"); return false; }
+  try { localStorage.setItem(LS.session, JSON.stringify(snap)); }
+  catch (e) { if (!silent) toast("本地存储已满，保存失败，建议先导出词库"); return false; }
+  savedSig = sessSig(); savedAt = snap.ts;
+  paintSessBar();
+  if (!silent) toast("已保存 · 第 " + (pos + 1) + "/" + queue.length + " 个，下次打开可接着做");
+  return true;
+}
+function readSession() {
+  try {
+    const s = JSON.parse(localStorage.getItem(LS.session) || "null");
+    if (s && Array.isArray(s.items) && s.items.length && Number(s.pos) >= 0) return s;
+  } catch (e) { }
+  return null;
+}
+/** 只清本地快照，不动当前会话 */
+function discardSnapshot() {
+  try { localStorage.removeItem(LS.session); } catch (e) { }
+  pendingSession = null; savedAt = 0; savedSig = "";
+  paintResumeBar();
+}
+function dropSession(quiet) {
+  discardSnapshot();
+  paintSessBar();
+  if (!quiet) toast("已放弃上次的进度");
+}
+function paintResumeBar() {
+  const bar = $("#resumeBar");
+  if (!bar) return;
+  if (started) { bar.hidden = true; return; }   // 正在做的这一轮就是它，别再提示「上次没做完」
+  const s = pendingSession || readSession();
+  if (!s) { pendingSession = null; bar.hidden = true; return; }
+  pendingSession = s;
+  const n = s.items.length;
+  const done = s.done != null ? s.done : s.items.filter(it => it.m).length;
+  const at = Math.min(Math.max(0, Number(s.pos) || 0), n - 1) + 1;
+  $("#rsMeta").textContent = "第 " + at + "/" + n + " 个 · 已标记 " + done + " 个 · " +
+    fmtDate(s.ts, true).slice(5) + (s.libName ? " · 「" + s.libName + "」" : "");
+  bar.hidden = false;
+}
+function paintSessBar() {
+  const hint = $("#sessHint"), save = $("#btnSaveSess"), end = $("#btnEndSess");
+  if (!hint || !save || !end) return;
+  const on = started && !finished;
+  save.disabled = !on;
+  end.disabled = !on;
+  if (!on) {
+    hint.className = "sv-hint";
+    hint.innerHTML = '<i class="dot"></i>' + (finished ? "本轮已结束" : "未开始");
+    return;
+  }
+  const at = "第 " + (pos + 1) + "/" + queue.length + " 个 · 已标记 " + markCount() + " 个";
+  if (!savedAt) {
+    hint.className = "sv-hint live";
+    hint.innerHTML = '<i class="dot"></i>' + at;
+  } else if (savedSig === sessSig()) {
+    hint.className = "sv-hint saved";
+    hint.innerHTML = '<i class="dot"></i>' + at + " · 已保存 " + clockText(savedAt);
+  } else {
+    hint.className = "sv-hint dirty";
+    hint.innerHTML = '<i class="dot"></i>' + at + " · 有改动未保存";
+  }
+}
+function resumeSession() {
+  const s = pendingSession || readSession();
+  if (!s) { toast("没有可继续的进度"); paintResumeBar(); return; }
+  // 先切回存进度时那个词库
+  if (s.libId && s.libId !== activeId && libs.some(l => l.id === s.libId)) {
+    activeId = s.libId;
+    words = activeLib().words;
+    try { localStorage.setItem(LS.active, activeId); } catch (e) { }
+    renderLibSelect();
+  }
+  const used = new Set(), q = [], mk = {};
+  let miss = 0;
+  s.items.forEach(it => {
+    const key = normWord(it.w);
+    if (!key) return;
+    const i = words.findIndex((w, idx) => !used.has(idx) && normWord(w.w) === key);
+    if (i < 0) { miss++; return; }
+    used.add(i);
+    q.push(i);
+    if (it.m === "know" || it.m === "vague" || it.m === "forgot") mk[i] = it.m;
+  });
+  if (!q.length) { toast("上次的词已不在当前词库里，没法接着做"); return; }
+  queue = q;
+  marks = mk;
+  pos = Math.max(0, Math.min(Number(s.pos) || 0, q.length - 1));
+  started = true; finished = false; revealed = false; playing = false;
+  resetRemoteStreak();
+  setLibMasked(true);            // 接着做也要挡答案
+  $("#gateStart").classList.add("hide");
+  $("#gateEnd").classList.add("hide");
+  $("#btnEndWrongBook").hidden = true;
+  pendingSession = null;
+  savedAt = s.ts; savedSig = sessSig();
+  paintResumeBar();
+  enterItem();
+  if (miss) toast("有 " + miss + " 个词已从词库移除，已跳过");
+  else toast("已接上进度 · 第 " + (pos + 1) + "/" + queue.length + " 个");
+}
+function endSession() {
+  if (!started) { toast("当前没有进行中的测试"); return; }
+  const total = queue.length;
+  const done = markCount();
+  const rest = total - done;
+  if (rest > 0) {
+    const ok = confirm("结束本轮？\n\n已标记 " + done + " 个，还有 " + rest + " 个没标记（不计入统计）。\n「模糊 / 忘了」会照常记入错题本。");
+    if (!ok) return;
+  }
+  finishSession(true);
 }
 
 /* ---------------- 渲染 ---------------- */
 function paintList() {
   const ul = $("#wordlist");
   $("#libCount").textContent = words.length + " 个";
+  paintCountTip();               // 换词库后「抽测数量」提示也要跟着变
   const meta = $("#libMeta");
   const lib = activeLib();
   if (meta && lib) meta.textContent = "「" + lib.name + "」" + words.length + " 词 · 创建于 " + fmtDate(lib.createdAt) + " · 存在本机浏览器";
@@ -2074,6 +2299,8 @@ function paintStage() {
         : "点击开始，听发音后回忆释义";
     }
   }
+  paintSessBar();
+  paintResumeBar();
 }
 
 function paintDots(active, total) {
@@ -2346,7 +2573,9 @@ function renderWrongBook() {
     return '<div class="wr-item" data-id="' + r.id + '">' +
       '<div class="wr-hd"><div>' +
         '<div class="t">' + fmtDate(r.ts, true) + ' <span class="badge" style="background:#fdecea;color:#b4453b">' + wrong.length + " 个错词</span></div>" +
-        '<div class="m">' + (r.libName ? "「" + esc(r.libName) + "」· " : "") + "共 " + r.total + " 词 · 记得 " + r.know + " / 模糊 " + r.vague + " / 忘了 " + r.forgot + "</div>" +
+        '<div class="m">' + (r.libName ? "「" + esc(r.libName) + "」· " : "") + "共 " + r.total + " 词" +
+          (r.early ? " · 提前结束，答 " + (r.done || 0) + " 个" : "") +
+          " · 记得 " + r.know + " / 模糊 " + r.vague + " / 忘了 " + r.forgot + "</div>" +
       "</div><div class=\"wr-btns\">" +
         (wrong.length ? '<button class="btn" data-act="retest">重练这 ' + wrong.length + " 个</button>" +
                         '<button class="btn" data-act="csv">导出 CSV</button>' : '<span class="muted" style="font-size:11.5px;color:var(--ok)">全对 🎉</span>') +
@@ -2603,6 +2832,14 @@ function bind() {
   };
   $("#btnRestart").onclick = () => startSession(false);
   $("#btnRetryWrong").onclick = () => startSession(true);
+
+  /* 进度：保存 / 继续 / 结束本轮 */
+  $("#btnSaveSess").onclick = () => saveSession(false);
+  $("#btnEndSess").onclick = endSession;
+  $("#btnResume").onclick = resumeSession;
+  $("#btnDropResume").onclick = () => {
+    if (confirm("放弃后这份进度就没了（错题本里已归档的记录不受影响），确定？")) dropSession();
+  };
 
   /* 自评 */
   $("#markRow").onclick = e => {
@@ -4064,6 +4301,8 @@ function init() {
   resetCounter();
   syncGate();
   paintStage();
+  paintResumeBar();   // 上次存过进度就把「继续上次」顶出来
+  paintSessBar();
 }
 
 window.addEventListener("load", init);
