@@ -26,27 +26,31 @@ try {
 /* ============ 基础 ============ */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 :root{
-  /* ===== 中性面（浅色） ===== */
-  --bg:#f6f2ea;
-  --panel:#fffdf9;
-  --panel-2:#faf6ee;
-  --panel-3:#fff;
-  --panel-hi:#fffdf8;
-  --ink:#1e1b16;
-  --ink-2:#4a443b;
-  --muted:#948b7d;
-  --faint:#b6ab98;
-  --line:#e8e0d2;
-  --line-2:#f0e9dd;
-  --line-3:#f2ece0;
-  --scroll:#e2d8c6;
-  --mask:rgba(46,36,22,.42);
-  --shadow:0 1px 2px rgba(70,50,20,.05),0 14px 34px -18px rgba(70,50,20,.28);
-  --shadow-pop:0 26px 64px rgba(60,44,20,.25);
-  --shadow-soft:0 10px 30px -12px rgba(70,50,20,.4);
-  --toast-bg:#26221c;
-  --toast-ink:#fdf8ef;
-  --ring:#26313f;
+  /* ===== 中性面（浅色）=====
+     底色不再写死成暖黄：下面每个面色都由 --n-h（色相）与 --n-s（饱和基准）算出来，
+     换「页面配色」时整页底色、卡片、描边、正文的调子一起换（金 → 暖米、蓝 → 冷灰蓝…）。
+     各面色相的明度（L）保持和原来一致，所以对比度、层级观感不变，只是冷暖跟着走。 */
+  --n-h:38;--n-s:100%;
+  --bg:hsl(var(--n-h),calc(var(--n-s)*.40),94.1%);
+  --panel:hsl(var(--n-h),calc(var(--n-s)*.75),98.9%);
+  --panel-2:hsl(var(--n-h),calc(var(--n-s)*.55),95.7%);
+  --panel-3:hsl(var(--n-h),calc(var(--n-s)*.35),99.6%);
+  --panel-hi:hsl(var(--n-h),calc(var(--n-s)*.75),98.7%);
+  --ink:hsl(var(--n-h),calc(var(--n-s)*.15),10.2%);
+  --ink-2:hsl(var(--n-h),calc(var(--n-s)*.11),26.1%);
+  --muted:hsl(var(--n-h),calc(var(--n-s)*.10),53.5%);
+  --faint:hsl(var(--n-h),calc(var(--n-s)*.17),65.5%);
+  --line:hsl(var(--n-h),calc(var(--n-s)*.32),86.7%);
+  --line-2:hsl(var(--n-h),calc(var(--n-s)*.39),90.4%);
+  --line-3:hsl(var(--n-h),calc(var(--n-s)*.41),91.4%);
+  --scroll:hsl(var(--n-h),calc(var(--n-s)*.33),83.1%);
+  --mask:hsla(var(--n-h),calc(var(--n-s)*.35),13%,.42);
+  --shadow:0 1px 2px hsla(var(--n-h),calc(var(--n-s)*.30),15%,.05),0 14px 34px -18px hsla(var(--n-h),calc(var(--n-s)*.30),15%,.28);
+  --shadow-pop:0 26px 64px hsla(var(--n-h),calc(var(--n-s)*.30),15%,.25);
+  --shadow-soft:0 10px 30px -12px hsla(var(--n-h),calc(var(--n-s)*.30),15%,.40);
+  --toast-bg:hsl(var(--n-h),calc(var(--n-s)*.15),12.9%);
+  --toast-ink:hsl(var(--n-h),calc(var(--n-s)*.60),96.5%);
+  --ring:hsl(var(--n-h),calc(var(--n-s)*.25),21%);
   /* ===== 强调色：默认「金」 ===== */
   --acc:#b98a4c;
   --acc-d:#98682c;
@@ -66,23 +70,37 @@ try {
   --r:18px;
   color-scheme:light;
 }
-/* 7 套强调色：圆点取参考图色相，实际 UI 用深一档，白字才看得清 */
-html[data-theme=blue]{--acc:#3f7fd8;--acc-d:#2f63b5;--acc-lt:#8fbaf5;--acc-rgb:63,127,216;--dot:#589fed}
-html[data-theme=green]{--acc:#3f9d6c;--acc-d:#2c7a50;--acc-lt:#7fd3a6;--acc-rgb:63,157,108;--dot:#5dbb89}
-html[data-theme=violet]{--acc:#8b6ee0;--acc-d:#6a4cbf;--acc-lt:#bfa9f5;--acc-rgb:139,110,224;--dot:#a37ee2}
-html[data-theme=orange]{--acc:#e0873f;--acc-d:#b96a25;--acc-lt:#f2b078;--acc-rgb:224,135,63;--dot:#ed9d60}
-html[data-theme=slate]{--acc:#6e8095;--acc-d:#4f6076;--acc-lt:#a9bacd;--acc-rgb:110,128,149;--dot:#8795a9}
-html[data-theme=pink]{--acc:#dd6f9d;--acc-d:#b44c78;--acc-lt:#f2a2c2;--acc-rgb:221,111,157;--dot:#ed80ab}
-/* 深色：面翻黑，强调色提亮一档当文字色，语义色改成低饱和发光 */
+/* 7 套强调色：圆点取参考图色相，实际 UI 用深一档，白字才看得清；
+   同时给出该套配色的中性面色相（--n-h）与饱和基准（--n-s），整页底色跟着一起换调子 */
+html[data-theme=blue]{--n-h:214;--n-s:92%;--acc:#3f7fd8;--acc-d:#2f63b5;--acc-lt:#8fbaf5;--acc-rgb:63,127,216;--dot:#589fed}
+html[data-theme=green]{--n-h:152;--n-s:80%;--acc:#3f9d6c;--acc-d:#2c7a50;--acc-lt:#7fd3a6;--acc-rgb:63,157,108;--dot:#5dbb89}
+html[data-theme=violet]{--n-h:258;--n-s:75%;--acc:#8b6ee0;--acc-d:#6a4cbf;--acc-lt:#bfa9f5;--acc-rgb:139,110,224;--dot:#a37ee2}
+html[data-theme=orange]{--n-h:24;--n-s:135%;--acc:#e0873f;--acc-d:#b96a25;--acc-lt:#f2b078;--acc-rgb:224,135,63;--dot:#ed9d60}
+html[data-theme=slate]{--n-h:210;--n-s:40%;--acc:#6e8095;--acc-d:#4f6076;--acc-lt:#a9bacd;--acc-rgb:110,128,149;--dot:#8795a9}
+html[data-theme=pink]{--n-h:335;--n-s:80%;--acc:#dd6f9d;--acc-d:#b44c78;--acc-lt:#f2a2c2;--acc-rgb:221,111,157;--dot:#ed80ab}
+/* 深色：面翻黑，强调色提亮一档当文字色，语义色改成低饱和发光；
+   黑面 / 浅字同样用 --n-h 上色，深色下也是「蓝黑 / 绿黑 / 紫黑」而不是一律暖棕 */
 html.dark{
-  --bg:#141310;--panel:#1c1a16;--panel-2:#232019;--panel-3:#2a2620;--panel-hi:#2f2b23;
-  --ink:#f1ebdf;--ink-2:#cec5b5;--muted:#9a9184;--faint:#7d7466;
-  --line:#352f27;--line-2:#2b2721;--line-3:#282420;--scroll:#3b352c;
+  --bg:hsl(var(--n-h),calc(var(--n-s)*.11),7.1%);
+  --panel:hsl(var(--n-h),calc(var(--n-s)*.12),9.8%);
+  --panel-2:hsl(var(--n-h),calc(var(--n-s)*.17),11.8%);
+  --panel-3:hsl(var(--n-h),calc(var(--n-s)*.14),14.5%);
+  --panel-hi:hsl(var(--n-h),calc(var(--n-s)*.15),16.1%);
+  --ink:hsl(var(--n-h),calc(var(--n-s)*.39),91%);
+  --ink-2:hsl(var(--n-h),calc(var(--n-s)*.20),75.9%);
+  --muted:hsl(var(--n-h),calc(var(--n-s)*.10),56.1%);
+  --faint:hsl(var(--n-h),calc(var(--n-s)*.10),44.5%);
+  --line:hsl(var(--n-h),calc(var(--n-s)*.15),18%);
+  --line-2:hsl(var(--n-h),calc(var(--n-s)*.13),14.9%);
+  --line-3:hsl(var(--n-h),calc(var(--n-s)*.11),14.1%);
+  --scroll:hsl(var(--n-h),calc(var(--n-s)*.15),20.2%);
   --mask:rgba(0,0,0,.62);
   --shadow:0 1px 2px rgba(0,0,0,.5),0 16px 38px -20px rgba(0,0,0,.85);
   --shadow-pop:0 26px 64px rgba(0,0,0,.66);
   --shadow-soft:0 10px 30px -12px rgba(0,0,0,.75);
-  --toast-bg:#f2ece0;--toast-ink:#1b1813;--ring:#e8e0d2;
+  --toast-bg:hsl(var(--n-h),calc(var(--n-s)*.41),91.4%);
+  --toast-ink:hsl(var(--n-h),calc(var(--n-s)*.17),9%);
+  --ring:hsl(var(--n-h),calc(var(--n-s)*.32),86.7%);
   --gold-d:var(--acc-lt);--gold-l:rgba(var(--acc-rgb),.18);
   --ok:#63c093;--ok-ink:#7fd0a6;--ok-bg:rgba(63,150,110,.16);--ok-bd:rgba(99,192,147,.3);
   --warn:#e0a95e;--warn-ink:#e6b46c;--warn-bg:rgba(192,138,62,.16);--warn-bg2:rgba(192,138,62,.24);
@@ -1573,11 +1591,12 @@ function applyTheme() {
   const root = document.documentElement;
   root.setAttribute("data-theme", curTheme());
   root.classList.toggle("dark", !!cfg.dark);
-  // 手机浏览器地址栏跟着变，别在深色页上留一条亮白边
+  // 手机浏览器地址栏跟着变，别在深色页上留一条亮白边。
+  // 注意：--bg 现在是 hsl(...) 计算式，直接塞给 meta 有些浏览器不认，所以取 body 上算完的 rgb
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) {
-    const bg = getComputedStyle(root).getPropertyValue("--bg").trim();
-    meta.setAttribute("content", bg || (cfg.dark ? "#141310" : "#f6f2ea"));
+    const bg = getComputedStyle(document.body).backgroundColor;
+    meta.setAttribute("content", bg && bg !== "rgba(0, 0, 0, 0)" ? bg : (cfg.dark ? "#141310" : "#f6f2ea"));
   }
   paintTheme();
 }
