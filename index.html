@@ -394,8 +394,13 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:#fff
 .sv-hint.live .dot{background:var(--gold)}
 .sv-hint.saved .dot{background:var(--ok)}
 .sv-hint.dirty .dot{background:var(--warn)}
+.sv-hint.paused .dot{background:var(--gold-d)}
 .sessbar .rs-acts,.sessbar .sv-acts{display:flex;gap:6px;margin-left:auto;flex:none}
-.btn.sv{padding:5px 10px;font-size:11.5px;border-radius:8px}
+/* 固定高度：暂停按钮变「继续」时会加粗，别让这一行按钮高低差 1px */
+.btn.sv{padding:0 10px;height:26px;font-size:11.5px;border-radius:8px}
+/* 暂停中：按钮变「继续」并点亮，一眼能看出这轮是停着的 */
+.btn.sv.pause:not(:disabled).on{border-color:#e2ca9f;background:linear-gradient(180deg,#fdf7ea,#faf0dd);
+  color:var(--gold-d);font-weight:650}
 .btn.sv.end:not(:disabled):hover{border-color:#e8c6bd;background:#fbeeeb;color:var(--bad)}
 
 /* 设置条 */
@@ -454,6 +459,8 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:#fff
 .playbtn:active{transform:scale(.97)}
 .playbtn svg{filter:drop-shadow(0 1px 2px rgba(90,60,20,.35))}
 .dial.playing .playbtn{animation:breathe 1.6s ease-in-out infinite}
+/* 暂停时圆钮变暗一点，提示「现在按下去是继续」 */
+.dial.paused .playbtn{filter:grayscale(.35) brightness(.94);box-shadow:0 8px 20px -16px rgba(140,96,38,.9),inset 0 1px 1px rgba(255,255,255,.3)}
 @keyframes breathe{0%,100%{box-shadow:0 12px 28px -14px rgba(140,96,38,.95),inset 0 1px 1px rgba(255,255,255,.4)}50%{box-shadow:0 14px 34px -12px rgba(140,96,38,.75),inset 0 1px 1px rgba(255,255,255,.4)}}
 
 .status{font-size:12.5px;color:var(--muted);letter-spacing:.04em;min-height:20px;text-align:center}
@@ -828,10 +835,11 @@ mutual,相互的"></textarea>
         </div>
       </div>
 
-      <!-- 本轮操作：保存进度 / 结束本轮 -->
+      <!-- 本轮操作：暂停 / 保存进度 / 结束本轮 -->
       <div class="sessbar">
         <span class="sv-hint" id="sessHint"><i class="dot"></i>未开始</span>
         <div class="sv-acts">
+          <button class="btn sv pause" id="btnPauseSess" type="button" aria-pressed="false" title="暂停本轮：立刻收声，也不会自动跳到下一题">暂停</button>
           <button class="btn sv" id="btnSaveSess" type="button" title="把这轮做到哪、标了什么都存下来，下次打开可以接着做">保存进度</button>
           <button class="btn sv end" id="btnEndSess" type="button" title="立即结束本轮，已标记的「模糊 / 忘了」会记入错题本">结束本轮</button>
         </div>
@@ -1233,6 +1241,7 @@ let pos = 0;
 let marks = {};          // wordsIndex -> know|vague|forgot
 let started = false, finished = false;
 let revealed = false, playing = false;
+let paused = false;      // 暂停：收声 + 冻结所有自动跳转，等「继续」
 let token = 0;           // 播放序列令牌，用来中断
 let repInFlight = false; // 是否正在等「这一遍读完」
 let lastSoundAt = 0;     // 最近一次真的出声的时间（判断「刚才还有声」）
@@ -2722,7 +2731,8 @@ function doReveal() {
   revealed = true;
   clearCountdown();
   // 先把停留定时器装上，再刷界面：否则状态文字会误报「点下一题继续」
-  armStay();
+  // 暂停中只显示释义，不装自动跳转（等「继续」再给窗口）
+  if (!paused) armStay();
   paintStage();
   preloadNext();
 }
@@ -2748,6 +2758,14 @@ function markText() {
   return mk === "know" ? "已标记「记得」"
     : mk === "vague" ? "已标记「模糊」"
       : mk === "forgot" ? "已标记「忘了」" : "释义已显示";
+}
+
+/** 暂停时的状态行：说清「停在哪一步、点哪里继续」 */
+function pausedText() {
+  if (!revealed) return "已暂停 · 点「继续」接着听";
+  const mk = marks[currentWordIndex()];
+  const mt = mk === "know" ? "已标记「记得」· " : mk === "vague" ? "已标记「模糊」· " : mk === "forgot" ? "已标记「忘了」· " : "";
+  return mt + "已暂停，点「继续」接着做";
 }
 
 /** 每 200ms 只刷新状态行和细条，不重排列表（别在这里做重活） */
@@ -2813,6 +2831,7 @@ function startSession(onlyWrong) {
 }
 
 function enterItem(autoPlay) {
+  paused = false;              // 翻页 / 继续 / 换轮都意味着不在暂停态了
   revealed = false;
   clearCountdown();
   clearNextTimer();
@@ -2839,7 +2858,7 @@ function goPrev() {
 }
 
 function finishSession(early) {
-  started = false; finished = true; playing = false;
+  started = false; finished = true; playing = false; paused = false;
   stopPlayback();
   clearNextTimer();              // 停掉释义停留倒计时，别在结算页后面继续跑
   setLibMasked(false);           // 本轮结束，词库恢复显示，方便复盘
@@ -2937,8 +2956,9 @@ function saveSession(silent) {
   /* 有些浏览器/设备上，点一下按钮会把声音当场掐掉（音频焦点被抢、语音队列被清），
      之后页面就卡在「正在播放 N/M 遍」不动，看起来像整轮测试停了。
      存完 0.7 秒复查一次：原本在出声、现在彻底没声、这一遍还没读完 → 直接重放这个词。 */
-  if (wasPlaying && wasInRep && savedRecently) {
+  if (wasPlaying && wasInRep && savedRecently && !paused) {
     setTimeout(() => {
+      if (paused) return;                  // 期间按了暂停：别把声音又放出来
       if (token !== tok || !playing || !repInFlight || soundLive()) return;
       playSequence(true);
       toast("已保存 · 声音刚才被打断了，已接着放");
@@ -2979,17 +2999,32 @@ function paintResumeBar() {
   bar.hidden = false;
 }
 function paintSessBar() {
-  const hint = $("#sessHint"), save = $("#btnSaveSess"), end = $("#btnEndSess");
+  const hint = $("#sessHint"), save = $("#btnSaveSess"), end = $("#btnEndSess"), pause = $("#btnPauseSess");
   if (!hint || !save || !end) return;
   const on = started && !finished;
   save.disabled = !on;
   end.disabled = !on;
+  if (pause) {
+    pause.disabled = !on;
+    const onPause = on && paused;
+    pause.textContent = onPause ? "继续" : "暂停";
+    pause.classList.toggle("on", onPause);
+    pause.setAttribute("aria-pressed", onPause ? "true" : "false");
+    pause.title = onPause
+      ? "继续这一轮：接着听当前这个单词（空格键也行）"
+      : "暂停本轮：立刻收声，也不会自动跳到下一题";
+  }
   if (!on) {
     hint.className = "sv-hint";
     hint.innerHTML = '<i class="dot"></i>' + (finished ? "本轮已结束" : "未开始");
     return;
   }
   const at = "第 " + (pos + 1) + "/" + queue.length + " 个 · 已标记 " + markCount() + " 个";
+  if (paused) {
+    hint.className = "sv-hint paused";
+    hint.innerHTML = '<i class="dot"></i>' + at + " · 已暂停";
+    return;
+  }
   if (!savedAt) {
     hint.className = "sv-hint live";
     hint.innerHTML = '<i class="dot"></i>' + at;
@@ -3050,6 +3085,32 @@ function endSession() {
   }
   finishSession(true);
 }
+
+/* ---------------- 暂停 / 继续 ---------------- */
+/** 暂停：立刻收声，停掉揭晓倒计时和「停留到点自动下一题」，画面停在这一题 */
+function pauseSession() {
+  if (!started || finished || paused) return;
+  paused = true;
+  clearCountdown();
+  clearNextTimer();
+  stopPlayback();                 // 停声；playing=false（内部刷的状态下面由 paintStage 盖回来）
+  paintStage();
+  toast("已暂停 · 点「继续」接着做（空格键也行）");
+}
+/** 继续：没揭晓就从这个词的第一遍重新念；已揭晓就重新给一个完整的停留窗口 */
+function resumePaused() {
+  if (!paused) return;
+  paused = false;
+  if (revealed) {
+    armStay();
+    paintPlayState();             // 圆钮取消「暂停」外观
+    paintStage();
+    toast("继续 · 释义再停 " + staySec() + " 秒");
+  } else {
+    enterItem();                  // enterItem 内部会清 paused 并重新播放
+  }
+}
+function togglePause() { if (paused) resumePaused(); else pauseSession(); }
 
 /* ---------------- 渲染 ---------------- */
 function paintList() {
@@ -3122,6 +3183,8 @@ function paintStage() {
   if (!playing && !cdTimer) {
     if (audioDead) {
       $("#status").innerHTML = "⚠ 本轮没有音频 · 已直接显示拼写";
+    } else if (paused && started) {
+      $("#status").textContent = pausedText();
     } else {
       // 揭晓文案带上自评结果和剩余停留时间：点完「记得」就知道自己标了什么、还剩几秒
       const left = Math.max(1, Math.ceil(stayLeftMs() / 1000));
@@ -3146,10 +3209,11 @@ function paintDots(active, total) {
 
 function paintPlayState() {
   $("#dial").classList.toggle("playing", playing);
+  $("#dial").classList.toggle("paused", paused && !playing);
   if (playing) {
     const total = Math.max(1, parseInt(cfg.repeat, 10) || 1);
     $("#status").innerHTML = "正在播放 <b>" + Math.max(1, $$("#dots i.on, #dots i.done").length) + " / " + total + "</b> 遍";
-  } else if (!cdTimer && !revealed && queue.length) {
+  } else if (!cdTimer && !revealed && queue.length && !paused) {
     $("#status").textContent = "点击圆形按钮再听一遍";
   }
 }
@@ -4372,6 +4436,7 @@ function bind() {
   /* 播放控制（只有圆形按钮和空格键，别再加重复的「重播」） */
   $("#btnPlay").onclick = () => {
     if (!started) { startSession(false); return; }
+    if (paused) { resumePaused(); return; }   // 暂停中按圆钮＝继续
     retryAudioIfDead();      // 用户主动点播放＝新的一次机会
     playSequence(true);
   };
@@ -4391,6 +4456,7 @@ function bind() {
   $("#btnRetryWrong").onclick = () => startSession(true);
 
   /* 进度：保存 / 继续 / 结束本轮 */
+  $("#btnPauseSess").onclick = togglePause;
   $("#btnSaveSess").onclick = () => saveSession(false);
   $("#btnEndSess").onclick = endSession;
   $("#btnResume").onclick = resumeSession;
@@ -4406,6 +4472,13 @@ function bind() {
     const idx = currentWordIndex();
     if (idx < 0) return;
     marks[idx] = b.dataset.m;
+    if (paused) {
+      // 暂停中标记：只记下来，不自动翻页——暂停就是「先停在这儿」
+      if (!revealed) { stopPlayback(); doReveal(); }
+      else paintStage();
+      paintSessBar();
+      return;
+    }
     if (!revealed) {
       // 先收声（可能还在念第二、三遍），再揭晓：释义按「释义停留」显示后再进入下一题
       stopPlayback();
@@ -4437,6 +4510,7 @@ function bind() {
     if (e.code === "Space") {
       e.preventDefault();
       if (gateOpen) startSession(false);
+      else if (started && paused) resumePaused();
       else if (queue.length) playSequence(true);
     } else if (e.key === "Enter") {
       e.preventDefault();
