@@ -51,15 +51,18 @@ input,select,textarea{font:inherit;color:inherit}
 /* ============ 布局 ============ */
 .app{max-width:1240px;margin:0 auto;padding:22px 22px 44px}
 .topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px;flex-wrap:wrap}
-.brand{display:flex;align-items:center;gap:12px}
+.brand{display:flex;align-items:center;gap:11px}
+/* 品牌徽标：蓝色圆角胶囊 + 黑色字重（对齐 GenuineEdu 视觉规范） */
 .logo{
-  width:42px;height:42px;border-radius:13px;flex:0 0 auto;
-  background:linear-gradient(150deg,#c9a06a,#9a6c30);
-  display:grid;place-items:center;color:#fff;
-  box-shadow:0 6px 16px -8px rgba(154,108,48,.9),inset 0 1px 0 rgba(255,255,255,.35);
+  display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;
+  height:34px;padding:0 12px;border-radius:10px;
+  font-size:15.5px;font-weight:800;letter-spacing:-.005em;line-height:1;color:#12100c;
+  background:linear-gradient(180deg,#4a7ce2 0%,#4173d4 46%,#3a68c8 100%);
+  border:1px solid #2f5dbd;
+  box-shadow:0 6px 14px -7px rgba(47,93,189,.75),inset 0 1px 0 rgba(255,255,255,.45),inset 0 -1px 0 rgba(0,0,0,.14);
 }
-.brand h1{margin:0;font-size:19px;letter-spacing:.02em;font-weight:650;white-space:nowrap}
-.brand p{margin:1px 0 0;font-size:12px;color:var(--muted);letter-spacing:.03em}
+.brand h1{margin:0;font-size:19.5px;letter-spacing:.06em;font-weight:700;white-space:nowrap;color:#1f2a3b;line-height:1.15}
+.brand p{margin:2px 0 0;font-size:9px;font-weight:600;color:#8b98b1;letter-spacing:.16em;line-height:1.1;white-space:nowrap}
 .top-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .btn{
   display:inline-flex;align-items:center;gap:6px;
@@ -577,6 +580,11 @@ body.adj-open #toast{bottom:250px}
   #revealStayHint{grid-column:1 / -1;padding-top:3px}
 }
 @media (max-width:520px){
+  /* 窄屏品牌区：胶囊、标题、英文副标题都收一档，别顶到屏幕边 */
+  .brand{gap:9px}
+  .logo{height:31px;padding:0 10px;border-radius:9px;font-size:14px}
+  .brand h1{font-size:18px;letter-spacing:.04em}
+  .brand p{font-size:8.5px;letter-spacing:.11em}
   .settings{grid-template-columns:repeat(2,minmax(0,1fr))}
   .set.wide{grid-column:span 2}
   /* 手机上停留秒数排成 5 个一行，按钮大一点好点 */
@@ -728,12 +736,10 @@ body.adj-open #toast{bottom:250px}
 
   <header class="topbar">
     <div class="brand">
-      <div class="logo">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
-      </div>
+      <span class="logo">GenuineEdu</span>
       <div>
-        <h1>GenuineEdu-单词听测</h1>
-        <p>听音回忆 · 错题归档</p>
+        <h1>单词听测</h1>
+        <p>WORD LISTENING PRACTICE</p>
       </div>
     </div>
     <div class="tabs" id="tabs">
