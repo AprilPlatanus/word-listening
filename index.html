@@ -463,11 +463,30 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:var(
   color:var(--gold-d);font-weight:650}
 .btn.sv.end:not(:disabled):hover{border-color:var(--bad-bd);background:var(--bad-bg);color:var(--bad)}
 
-/* 设置条 */
+/* 设置条：外层一张可折叠的卡。开始听测后自动收起，只留一行摘要，一个测试页才装得进一屏 */
+.setwrap{margin:12px 0 4px;background:var(--panel-2);border:1px solid var(--line-2);border-radius:14px;overflow:hidden}
+.set-hd{
+  display:flex;align-items:center;gap:9px;width:100%;padding:7px 12px;
+  text-align:left;transition:background .15s;
+}
+.set-hd:hover{background:rgba(var(--acc-rgb),.05)}
+.set-hd:focus-visible{outline:2px solid var(--ring);outline-offset:-2px}
+.set-ttl{flex:none;font-size:11.5px;font-weight:650;letter-spacing:.04em;color:var(--ink)}
+.set-sum{
+  flex:1 1 auto;min-width:0;font-size:11px;color:var(--muted);letter-spacing:.02em;
+  font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right;
+}
+/* 折叠箭头：纯 CSS 三角（字符 ▾ 在 10px 下糊成一团），收起时转 90° */
+.set-hd .car{
+  flex:none;width:0;height:0;border-left:4.5px solid transparent;border-right:4.5px solid transparent;
+  border-top:5px solid var(--faint);transition:transform .18s;
+}
+.setwrap.folded .set-hd .car{transform:rotate(-90deg)}
 .settings{
   display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;
-  margin:14px 0 4px;padding:11px 12px;background:var(--panel-2);border:1px solid var(--line-2);border-radius:14px;
+  padding:2px 12px 11px;
 }
+.setwrap.folded .settings{display:none}
 .set{min-width:0}
 .set label{display:block;font-size:11px;color:var(--muted);letter-spacing:.03em;margin-bottom:4px;white-space:nowrap}
 .set select,.set input{padding:6px 8px;font-size:12.5px;border-radius:8px;background:var(--panel-3)}
@@ -556,8 +575,9 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:var(
 .dots i.done{background:rgba(var(--acc-rgb),.42)}
 
 /* 释义区 */
-.reveal{position:relative;min-height:118px;width:100%;max-width:560px;margin-top:10px}
-.veil,.answer{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;transition:opacity .4s ease,transform .4s cubic-bezier(.2,.75,.3,1)}
+/* 释义区：两态叠在同一格里（grid 同格叠放），长释义可以把这块撑高，不会压到下面的自评按钮 */
+.reveal{position:relative;display:grid;align-items:center;min-height:118px;width:100%;max-width:560px;margin-top:10px}
+.veil,.answer{grid-area:1 / 1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;transition:opacity .4s ease,transform .4s cubic-bezier(.2,.75,.3,1)}
 .veil{gap:8px;color:var(--muted)}
 .veil .eye{font-size:20px;opacity:.5}
 .veil p{margin:0;font-size:12.5px;letter-spacing:.04em}
@@ -612,6 +632,8 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:var(
 .gate h3{margin:0;font-size:17px;font-weight:650}
 .gate p{margin:0;font-size:12.5px;color:var(--muted);max-width:380px;line-height:1.7;text-wrap:balance}
 .gate .btn{margin-top:6px}
+.gate .gate-pace{margin-top:-2px;font-size:11.5px;color:var(--faint);line-height:1.6}
+.gate .gate-pace b{color:var(--muted);font-weight:600}
 .steps{display:flex;gap:8px;margin:4px 0 2px;flex-wrap:wrap;justify-content:center}
 .steps span{
   font-size:11.5px;color:var(--gold-d);background:var(--gold-l);border:1px solid rgba(var(--acc-rgb),.3);
@@ -817,6 +839,90 @@ body.adj-open #toast{bottom:250px}
   .sp-side{position:static;order:2}
   .sp-main{order:1}
 }
+
+/* ============ 矮屏：垂直方向收紧 ============
+   目标：不滚动就能同时看到「进度条」和下面的「记得 / 模糊 / 忘了」。
+   只压缩留白和播放钮，字号基本不动，避免把测试页做小。 */
+@media (max-height:900px){
+  .app{padding-top:16px;padding-bottom:26px}
+  .topbar{margin-bottom:12px}
+  .playarea{padding-top:18px;padding-bottom:14px}
+}
+/* 宽屏让测试台撑满一屏：内容少了也不会把面板缩成一小块，播放区反而能垂直居中。
+   用 flex 把「整页高度」交给布局，比写死 calc(100vh - Npx) 稳，换屏不会多出几像素滚动条 */
+@media (min-width:901px){
+  .app{display:flex;flex-direction:column;min-height:100vh;min-height:100dvh}
+  #viewListen{display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
+  #viewListen .layout{flex:1 1 auto;align-items:stretch}
+  #stage{display:flex;flex-direction:column;min-height:0}
+  .playarea{flex:1 1 auto}
+}
+@media (min-width:901px) and (max-height:820px){
+  .stage{padding:14px}
+  .stage-top{margin-bottom:10px}
+  .setwrap{margin:9px 0 2px}
+  .playarea{padding:14px 16px 10px}
+  .dial{width:92px;height:92px;margin-bottom:10px}
+  .playbtn{width:80px;height:80px}
+  .playbtn svg{width:28px;height:28px}
+  .reveal{min-height:104px;margin-top:8px}
+  .answer .word{font-size:clamp(28px,3.5vw,40px)}
+  .mark{margin-top:9px}
+  .actions{margin-top:12px}
+  .keyhint{margin-top:10px}
+  .note{margin-top:9px}
+}
+@media (min-width:901px) and (max-height:720px){
+  .app{padding-top:11px;padding-bottom:14px}
+  .topbar{margin-bottom:9px}
+  .playarea{padding:9px 16px 7px}
+  .dial{width:74px;height:74px;margin-bottom:7px}
+  .playbtn{width:64px;height:64px}
+  .playbtn svg{width:23px;height:23px}
+  #dots{margin-top:7px}
+  .reveal{min-height:90px;margin-top:5px}
+  .answer .def{margin-top:6px;font-size:14.5px}
+  .mark{margin-top:7px}
+  .mark button{padding:6px 14px}
+  .actions{margin-top:9px}
+  .keyhint{display:none}       /* 矮屏先保证测试区完整，键位提示可以让位 */
+}
+/* 手机 / 平板：本来就纵向排列，再把播放区压一档 */
+@media (max-width:900px) and (max-height:840px){
+  .playarea{min-height:0;padding:14px 8px 10px}
+  .dial{width:92px;height:92px;margin-bottom:10px}
+  .playbtn{width:80px;height:80px}
+  .playbtn svg{width:28px;height:28px}
+  .reveal{min-height:104px;margin-top:8px}
+  .mark{margin-top:9px}
+  .actions{margin-top:11px}
+  .keyhint{margin-top:9px}
+}
+/* 手机上没有物理键盘，键位提示纯占地方 */
+@media (max-width:640px){
+  .keyhint{display:none}
+}
+/* 小屏手机（高度 ≤760，如 iPhone SE / 小尺寸安卓）：顶栏和播放区各再压一档，保证自评和翻页按钮还在一屏里 */
+@media (max-width:900px) and (max-height:760px){
+  .app{padding-top:10px;padding-bottom:14px}
+  .topbar{margin-bottom:10px;gap:10px}
+  .top-actions .btn{padding:6px 10px;font-size:12px}
+  .stage{padding:12px}
+  .stage-top{margin-bottom:8px}
+  .setwrap{margin:8px 0 2px}
+  .set-hd{padding:5px 10px}
+  .sessbar{padding:4px 8px}
+  .playarea{padding:8px 8px 4px}
+  .dial{width:74px;height:74px;margin-bottom:6px}
+  .playbtn{width:64px;height:64px}
+  .playbtn svg{width:23px;height:23px}
+  .reveal{min-height:88px;margin-top:5px}
+  .answer .word{font-size:30px}
+  .mark{margin-top:7px}
+  .mark button{padding:6px 13px}
+  .actions{margin-top:6px}
+  .actions .btn{padding:7px 12px}
+}
 </style>
 </head>
 <body>
@@ -939,8 +1045,15 @@ mutual,相互的"></textarea>
         </div>
       </div>
 
-      <!-- 设置 -->
-      <div class="settings">
+      <!-- 设置：可折叠。开始听测后自动收起，只留一行摘要，整块测试页才装得进一屏 -->
+      <div class="setwrap" id="setWrap">
+        <button class="set-hd" id="setToggle" type="button" aria-expanded="true" aria-controls="setBody"
+                title="展开 / 收起测试设置">
+          <span class="set-ttl">测试设置</span>
+          <span class="set-sum" id="setSum"></span>
+          <span class="car" aria-hidden="true"></span>
+        </button>
+        <div class="settings" id="setBody">
         <div class="set wide">
           <label>发音引擎<button class="mini" id="btnTestSound" type="button" title="用当前引擎读一个 hello">试听</button></label>
           <select id="selEngine">
@@ -1016,6 +1129,7 @@ mutual,相互的"></textarea>
             <span>切换深色</span>
           </button>
         </div>
+        </div>
       </div>
 
       <!-- 播放区 -->
@@ -1063,6 +1177,7 @@ mutual,相互的"></textarea>
           <h3>准备好了吗</h3>
           <div class="steps"><span>① 听发音</span><span>② 心里回忆</span><span>③ 自动揭晓</span></div>
           <p id="gateDesc">词库还是空的：把单词粘到左边存好，或点右上「导入文件」。</p>
+          <p class="gate-pace">节奏（语速 / 遍数 / 停留秒数）点上面的「<b>测试设置</b>」随时能改</p>
           <button class="btn gold" id="btnStart">开始听测</button>
         </div>
 
@@ -2976,6 +3091,7 @@ function startSession(onlyWrong) {
   savedAt = 0; savedSig = "";      // 新一轮，从「未保存」开始
   resetRemoteStreak();
   setLibMasked(true);            // 开测即收词库，防止看答案
+  setFold(true);                 // 开测即收设置：一屏要同时装下进度条和「记得 / 模糊 / 忘了」
   $("#gateStart").classList.add("hide");
   $("#gateEnd").classList.add("hide");
   // 预取前 3 个词的音频，避免第一题等待
@@ -3382,6 +3498,32 @@ function paintStats() {
 }
 
 /* ---------------- 设置同步 ---------------- */
+/* 设置区折叠：开始听测后自动收起，只留「1.0× · 1 遍 · 延迟 3s · 停留 3s」一行摘要。
+   原因：设置整块约 280px 高，夹在进度条和播放区之间，1366×768 这类笔记本上一屏
+   根本装不下「进度条 + 记得/模糊/忘了」，学生得来回滚。 */
+function setFold(fold) {
+  const w = $("#setWrap");
+  if (!w) return;
+  w.classList.toggle("folded", !!fold);
+  const btn = $("#setToggle");
+  if (btn) btn.setAttribute("aria-expanded", fold ? "false" : "true");
+}
+function toggleFold() {
+  const w = $("#setWrap");
+  if (w) setFold(!w.classList.contains("folded"));
+}
+/** 收起状态也要看得出当前节奏，省得每次点开确认 */
+function paintSetSum() {
+  const el = $("#setSum");
+  if (!el) return;
+  // 语速保留一位小数（1.0×），延迟去掉多余的 .0（3s），读起来更像人话
+  const r = Number(cfg.rate) || 1;
+  const rate = r === Math.round(r) ? r.toFixed(1) : String(Math.round(r * 100) / 100);
+  const d = Number(cfg.delay);
+  const delay = isFinite(d) ? (d === Math.round(d) ? String(d) : String(Math.round(d * 10) / 10)) : "–";
+  el.textContent = rate + "× · " + (parseInt(cfg.repeat, 10) || 1) + " 遍 · 延迟 " + delay + "s · 停留 " + staySec() + "s";
+}
+
 function syncSettingsUI() {
   $("#selEngine").value = cfg.engine;
   $("#inpRepeat").value = cfg.repeat;
@@ -3404,6 +3546,7 @@ function syncSettingsUI() {
     b.setAttribute("aria-pressed", on ? "true" : "false");
   });
   paintCountTip();
+  paintSetSum();
 }
 /** 抽测数量提示：库里有几个、这轮会抽几个 */
 function paintCountTip() {
@@ -4540,6 +4683,7 @@ function bind() {
     started = true;
     revealed = false;
     setLibMasked(true);          // 进入测试态，词库一并收起
+    setFold(true);               // 从词表直接跳题也算开测，设置一起收起
     $("#gateStart").classList.add("hide");
     $("#gateEnd").classList.add("hide");
     enterItem();
@@ -4554,6 +4698,7 @@ function bind() {
     toast("发音引擎：" + e.target.selectedOptions[0].textContent);
   };
   $("#selVoice").onchange = e => { cfg.voice = e.target.value; saveCfg(); };
+  $("#setToggle").onclick = toggleFold;
   $("#inpRepeat").onchange = e => {
     cfg.repeat = clamp(e.target.value, 1, 9, 1); saveCfg(); syncSettingsUI(); paintStage();
   };
@@ -6134,6 +6279,8 @@ function init() {
   window.addEventListener("dragover", e => e.preventDefault());
   window.addEventListener("drop", e => { if (!e.defaultPrevented) e.preventDefault(); });
   syncSettingsUI();
+  // 设置区默认收起：一屏要装下进度条 + 播放区 + 自评按钮；想改节奏点一下「测试设置」就展开
+  setFold(true);
   renderLibs();
   paintList();
   resetCounter();
