@@ -858,7 +858,7 @@ mutual,相互的"></textarea>
         </div>
         <div class="set">
           <label>重复遍数</label>
-          <input type="number" id="inpRepeat" min="1" max="9" step="1" value="2">
+          <input type="number" id="inpRepeat" min="1" max="9" step="1" value="1">
         </div>
         <div class="set">
           <label>间隔（秒）</label>
@@ -866,11 +866,11 @@ mutual,相互的"></textarea>
         </div>
         <div class="set">
           <label>揭晓延迟（秒）</label>
-          <input type="number" id="inpDelay" min="0" max="20" step="0.5" value="2">
+          <input type="number" id="inpDelay" min="0" max="20" step="0.5" value="3">
         </div>
         <div class="set">
           <label>语速</label>
-          <input type="number" id="inpRate" min="0.5" max="1.5" step="0.05" value="0.9">
+          <input type="number" id="inpRate" min="0.5" max="1.5" step="0.05" value="1">
         </div>
         <div class="set wide full" id="voiceWrap" hidden>
           <label>系统音色</label>
@@ -920,7 +920,7 @@ mutual,相互的"></textarea>
         <div class="reveal">
           <div class="veil" id="veil">
             <div class="eye">👁</div>
-            <p>发音结束后 <b id="delayTxt">2</b> 秒自动显示释义</p>
+            <p>发音结束后 <b id="delayTxt">3</b> 秒自动显示释义</p>
             <p class="veil-tip">想先对答案？点「记得 / 模糊 / 忘了」立刻显示</p>
           </div>
           <div class="answer" id="answer">
@@ -1216,9 +1216,10 @@ const LS = {
   libs: "wdt.libs.v2", active: "wdt.active.v2", records: "wdt.records.v1",
   session: "wdt.session.v1"
 };
+/* 默认节奏：语速 1.0 倍 · 重复 1 遍 · 发音结束 3 秒后揭晓 · 揭晓后停留 3 秒 */
 const DEFAULTS = {
-  engine: "youdao-us", voice: "", rate: 0.9, repeat: 2, gap: 1,
-  delay: 2, shuffle: true, customUrl: "", count: 0, audit: true, stay: 3
+  engine: "youdao-us", voice: "", rate: 1, repeat: 1, gap: 1,
+  delay: 3, shuffle: true, customUrl: "", count: 0, audit: true, stay: 3
 };
 /* 释义揭晓后停留几秒：设置里可选 1–10 秒（cfg.stay），这段时间正好用来点「记得 / 模糊 / 忘了」 */
 const STAY_MIN = 1, STAY_MAX = 10, STAY_FALLBACK = 3;
@@ -1293,18 +1294,24 @@ function loadStore() {
   activeId = libs.some(l => l.id === saved) ? saved : libs[0].id;
   words = activeLib().words;
 
-  // 设置：老配置迁移（v3 起「打乱顺序」默认开；v4 起释义停留可在 1–10 秒之间选）
+  // 设置：老配置迁移（v3 起「打乱顺序」默认开；v4 起释义停留可在 1–10 秒之间选；
+  // v5 起默认语速 1.0 / 重复 1 遍 / 揭晓延迟 3 秒，仍是旧默认值的配置一并升级，改过的不动）
   try {
     const c = JSON.parse(localStorage.getItem(LS.cfg) || "{}");
     const ver = Number(c && c.v) || 0;
     cfg = Object.assign({}, DEFAULTS, c || {});
     if (ver < 3) cfg.shuffle = true;
+    if (ver < 5) {
+      if (Number(cfg.rate) === 0.9) cfg.rate = DEFAULTS.rate;
+      if (Number(cfg.repeat) === 2) cfg.repeat = DEFAULTS.repeat;
+      if (Number(cfg.delay) === 2) cfg.delay = DEFAULTS.delay;
+    }
     delete cfg.autoNext;          // 旧字段：节奏已统一，留着只会误导
     const raw = cfg.stay;
     const stay = raw === "" || raw == null ? NaN : Math.round(Number(raw));
     cfg.stay = isFinite(stay) ? clamp(stay, STAY_MIN, STAY_MAX, STAY_FALLBACK) : STAY_FALLBACK;
-    cfg.v = 4;
-  } catch (e) { cfg = Object.assign({}, DEFAULTS, { v: 4 }); }
+    cfg.v = 5;
+  } catch (e) { cfg = Object.assign({}, DEFAULTS, { v: 5 }); }
 
   // 错题记录
   try {
@@ -4414,7 +4421,7 @@ function bind() {
     cfg.gap = clamp(e.target.value, 0, 9, 1); saveCfg(); syncSettingsUI();
   };
   $("#inpDelay").onchange = e => {
-    cfg.delay = clamp(e.target.value, 0, 20, 0.5); saveCfg(); syncSettingsUI(); paintStage();
+    cfg.delay = clamp(e.target.value, 0, 20, 3); saveCfg(); syncSettingsUI(); paintStage();
   };
   /* 释义停留：点一下立刻生效；如果当前这题正停在揭晓阶段，就按新时长重新计时 */
   $("#staySeg").onclick = e => {
@@ -4428,7 +4435,7 @@ function bind() {
     toast("释义停留 " + v + " 秒");
   };
   $("#inpRate").onchange = e => {
-    cfg.rate = clamp(e.target.value, 0.5, 1.5, 0.9); saveCfg(); syncSettingsUI();
+    cfg.rate = clamp(e.target.value, 0.5, 1.5, 1); saveCfg(); syncSettingsUI();
   };
   $("#inpCustom").onchange = e => { cfg.customUrl = e.target.value.trim(); saveCfg(); };
   $("#chkShuffle").onchange = e => { cfg.shuffle = e.target.checked; saveCfg(); syncGate(); };
