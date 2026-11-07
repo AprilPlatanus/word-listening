@@ -109,14 +109,15 @@ input,select,textarea{font:inherit;color:inherit}
 .app{max-width:1240px;margin:0 auto;padding:22px 22px 44px}
 .topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px;flex-wrap:wrap}
 .brand{display:flex;align-items:center;gap:11px}
-/* 品牌徽标：蓝色圆角胶囊 + 黑色字重（对齐 GenuineEdu 视觉规范） */
+/* 品牌徽标：胶囊底色跟着「页面配色」走（--acc 系列令牌），切主题 / 深色自动跟随，
+   字仍用近黑，和参考设计一致，也不会抢走主按钮的风头 */
 .logo{
   display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;
   height:34px;padding:0 12px;border-radius:10px;
   font-size:15.5px;font-weight:800;letter-spacing:-.005em;line-height:1;color:#12100c;
-  background:linear-gradient(180deg,#4a7ce2 0%,#4173d4 46%,#3a68c8 100%);
-  border:1px solid #2f5dbd;
-  box-shadow:0 6px 14px -7px rgba(47,93,189,.75),inset 0 1px 0 rgba(255,255,255,.45),inset 0 -1px 0 rgba(0,0,0,.14);
+  background:linear-gradient(180deg,var(--acc-lt) 0%,var(--acc) 88%);
+  border:1px solid var(--acc-d);
+  box-shadow:0 6px 14px -8px rgba(var(--acc-rgb),.7),inset 0 1px 0 rgba(255,255,255,.45),inset 0 -1px 0 rgba(0,0,0,.12);
 }
 .brand h1{margin:0;font-size:19.5px;letter-spacing:.06em;font-weight:700;white-space:nowrap;color:var(--ink);line-height:1.15}
 .brand p{margin:2px 0 0;font-size:9px;font-weight:600;color:var(--muted);letter-spacing:.16em;line-height:1.1;white-space:nowrap}
