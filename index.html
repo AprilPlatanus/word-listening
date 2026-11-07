@@ -510,7 +510,6 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:var(
 .set label{display:block;font-size:11px;color:var(--muted);letter-spacing:.03em;margin-bottom:3px;white-space:nowrap}
 .set select,.set input{padding:6px 8px;font-size:12.5px;border-radius:8px;background:var(--panel-3)}
 .set.wide{grid-column:span 2}
-.set.full{grid-column:1 / -1}   /* 带长提示的区域独占一整行，别和右侧开关挤在一起 */
 .set .unit{font-size:11px;color:var(--muted);margin-left:3px}
 .switch{display:flex;align-items:center;gap:7px;padding-top:15px;font-size:12px;color:var(--ink-2);cursor:pointer;user-select:none;grid-column:span 2;white-space:nowrap}
 .switch input{appearance:none;width:34px;height:19px;border-radius:20px;background:var(--line);position:relative;transition:.2s;cursor:pointer;flex:0 0 auto;border:none;padding:0}
@@ -533,19 +532,20 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:var(
 #revealStayHint{margin:5px 0 0;font-size:11.5px;line-height:1.5}
 #revealStayHint b{color:var(--gold-d);font-variant-numeric:tabular-nums}
 
-/* 页面配色：一排色点 + 深浅色按钮（参考 GenuineEdu 配色选择条） */
-.theme-set{display:flex;align-items:center;gap:9px;flex-wrap:wrap;
-  margin-top:3px;padding-top:9px;border-top:1px dashed var(--line-2)}
-.tt-lbl{flex:none;font-size:11px;color:var(--muted);letter-spacing:.03em;margin:0}
-.sw-pill{display:flex;align-items:center;gap:8px;flex:none;
-  background:var(--panel-3);border:1px solid var(--line);border-radius:999px;padding:4px 10px}
-.swdot{width:23px;height:23px;border-radius:50%;border:0;padding:0;flex:none;position:relative;
+/* 页面配色：常驻顶栏右上角，一排色点 + 深浅色开关。
+   放在这里而不是「测试设置」里，是因为开测后设置会自动收起，配色想随时换就得再点开一层。 */
+.top-theme{display:flex;align-items:center;gap:6px;flex:none}
+.sw-pill{
+  display:flex;align-items:center;gap:5px;flex:none;
+  background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px 7px;
+}
+.swdot{width:18px;height:18px;border-radius:50%;border:0;padding:0;flex:none;position:relative;
   background:var(--dot);cursor:pointer;transition:transform .14s,box-shadow .14s;
   box-shadow:inset 0 -2px 4px rgba(0,0,0,.16),inset 0 1px 2px rgba(255,255,255,.55)}
 /* 视觉上是个小圆点，实际点击范围放大一圈，手机上不至于点不中 */
 .swdot::after{content:"";position:absolute;inset:-5px;border-radius:50%}
 .swdot:hover{transform:scale(1.08)}
-.swdot.on{box-shadow:0 0 0 2px var(--panel-3),0 0 0 3.5px var(--ring),
+.swdot.on{box-shadow:0 0 0 2px var(--panel),0 0 0 3.5px var(--ring),
   inset 0 -2px 4px rgba(0,0,0,.16),inset 0 1px 2px rgba(255,255,255,.55)}
 .swdot[data-theme=gold]{--dot:#c7a64d}
 .swdot[data-theme=blue]{--dot:#589fed}
@@ -554,9 +554,19 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:var(
 .swdot[data-theme=orange]{--dot:#ed9d60}
 .swdot[data-theme=slate]{--dot:#8795a9}
 .swdot[data-theme=pink]{--dot:#ed80ab}
-.dark-btn{flex:none;padding:6px 11px;font-size:12px;border-radius:9px;gap:6px;color:var(--ink-2)}
-.dark-btn svg{width:14px;height:14px;flex:none;color:var(--acc)}
+.dark-btn{flex:none;padding:8px 9px;font-size:12.5px;border-radius:10px;gap:6px;color:var(--ink-2)}
+.dark-btn svg{width:15px;height:15px;flex:none;color:var(--acc)}
 .dark-btn:hover{border-color:rgba(var(--acc-rgb),.34);background:var(--panel-3)}
+/* 1000px 上下的笔记本屏顶栏本来就挤：深色按钮收成只有月亮图标、色点收小一档，
+   配色条才塞得进同一行（否则顶栏折成两行，测试页就得多滚一屏） */
+@media (max-width:1100px){
+  .topbar{gap:12px}
+  .dark-btn span{display:none}
+  .dark-btn{padding:7px 8px}
+  .top-theme{gap:5px;margin-left:auto}
+  .sw-pill{gap:4px;padding:3px 6px}
+  .swdot{width:17px;height:17px}
+}
 
 /* 舞台 */
 .playarea{
@@ -704,6 +714,8 @@ body.adj-open #toast{bottom:250px}
   /* 窄屏只剩 3 列：停留按钮独占一行，别撑出隐藏列 */
   .stay-set{grid-column:1 / -1}
   #revealStayHint{grid-column:1 / -1;padding-top:3px}
+  /* 顶栏换行后配色条仍然贴右边：margin-left:auto 在最后一行把它推到右边缘 */
+  .top-theme{margin-left:auto}
 }
 @media (max-width:520px){
   /* 窄屏品牌区：胶囊、标题、英文副标题都收一档，别顶到屏幕边 */
@@ -711,12 +723,12 @@ body.adj-open #toast{bottom:250px}
   .logo{height:31px;padding:0 10px;border-radius:9px;font-size:14px}
   .brand h1{font-size:18px;letter-spacing:.04em}
   .brand p{font-size:8.5px;letter-spacing:.11em}
-  /* 窄屏配色行：色点缩小一档、标签收起来，保证色点 + 深色按钮同一行放得下 */
-  .tt-lbl{display:none}
-  .theme-set{gap:7px;padding-top:8px}
-  .sw-pill{gap:6px;padding:4px 8px}
-  .swdot{width:20px;height:20px}
-  .dark-btn{padding:5px 9px;font-size:11.5px}
+  /* 窄屏配色条：色点缩小一档、深色按钮只留月亮图标，保证一排放得下 */
+  .top-theme{gap:6px}
+  .sw-pill{gap:5px;padding:4px 7px}
+  .swdot{width:19px;height:19px}
+  .dark-btn{padding:7px 8px}
+  .dark-btn span{display:none}
   .settings{grid-template-columns:repeat(2,minmax(0,1fr))}
   .set.wide{grid-column:span 2}
   /* 手机上停留秒数排成 5 个一行，按钮大一点好点 */
@@ -968,6 +980,22 @@ body.adj-open #toast{bottom:250px}
       <button class="btn ghost" id="btnNatural">NaturalReader ↗</button>
       <a class="btn ghost" href="https://github.com/AprilPlatanus/word-listening" target="_blank" rel="noopener" title="开源仓库 · 欢迎 Star">GitHub ↗</a>
     </div>
+    <!-- 页面配色：常驻右上角，不随「测试设置」一起收起 -->
+    <div class="top-theme" role="group" aria-label="页面配色与深浅色">
+      <div class="sw-pill" id="swPill" role="group" aria-label="页面配色" title="页面配色">
+        <button class="swdot" type="button" data-theme="gold" title="金色（默认）" aria-label="金色"></button>
+        <button class="swdot" type="button" data-theme="blue" title="蓝色" aria-label="蓝色"></button>
+        <button class="swdot" type="button" data-theme="green" title="绿色" aria-label="绿色"></button>
+        <button class="swdot" type="button" data-theme="violet" title="紫色" aria-label="紫色"></button>
+        <button class="swdot" type="button" data-theme="orange" title="橙色" aria-label="橙色"></button>
+        <button class="swdot" type="button" data-theme="slate" title="灰蓝" aria-label="灰蓝"></button>
+        <button class="swdot" type="button" data-theme="pink" title="粉色" aria-label="粉色"></button>
+      </div>
+      <button class="btn dark-btn" id="btnDark" type="button" aria-pressed="false" title="切换深色 / 浅色">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z"/></svg>
+        <span>切换深色</span>
+      </button>
+    </div>
   </header>
 
   <section id="viewListen">
@@ -1133,23 +1161,6 @@ mutual,相互的"></textarea>
             <button type="button" data-s="10" aria-pressed="false" title="揭晓后停 10 秒">10</button>
           </div>
           <p class="hint" id="revealStayHint">揭晓后停 <b>3</b> 秒，期间可点「记得 / 模糊 / 忘了」</p>
-        </div>
-        <!-- 页面配色 + 深浅色 -->
-        <div class="set full theme-set">
-          <span class="tt-lbl">页面配色</span>
-          <div class="sw-pill" id="swPill" role="group" aria-label="页面配色">
-            <button class="swdot" type="button" data-theme="gold" title="金色（默认）" aria-label="金色"></button>
-            <button class="swdot" type="button" data-theme="blue" title="蓝色" aria-label="蓝色"></button>
-            <button class="swdot" type="button" data-theme="green" title="绿色" aria-label="绿色"></button>
-            <button class="swdot" type="button" data-theme="violet" title="紫色" aria-label="紫色"></button>
-            <button class="swdot" type="button" data-theme="orange" title="橙色" aria-label="橙色"></button>
-            <button class="swdot" type="button" data-theme="slate" title="灰蓝" aria-label="灰蓝"></button>
-            <button class="swdot" type="button" data-theme="pink" title="粉色" aria-label="粉色"></button>
-          </div>
-          <button class="btn dark-btn" id="btnDark" type="button" aria-pressed="false" title="切换深色 / 浅色">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z"/></svg>
-            <span>切换深色</span>
-          </button>
         </div>
         </div>
       </div>
