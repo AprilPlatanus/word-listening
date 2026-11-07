@@ -414,8 +414,21 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:#fff
 .switch input:checked{background:var(--gold)}
 .switch input::after{content:"";position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 2px rgba(0,0,0,.18)}
 .switch input:checked::after{left:17px}
-/* 揭晓后的节奏已固定为 1 秒，不再给开关，用一行小字说明 */
-#revealStayHint{grid-column:span 4;margin:0;padding-top:15px;font-size:12px}
+/* 释义停留：1–10 秒分段按钮（揭晓后留出时间点自评） */
+.stay-set{grid-column:span 4;min-width:0}
+.stay-seg{display:flex;gap:3px;max-width:460px}
+.stay-seg button{
+  flex:1 1 0;min-width:0;padding:5px 0;border-radius:7px;cursor:pointer;
+  font-size:12px;font-variant-numeric:tabular-nums;
+  background:#fff;border:1px solid var(--line-2);color:var(--ink-2);transition:.14s;
+}
+.stay-seg button:hover{border-color:var(--gold);color:var(--gold-d)}
+.stay-seg button.on{
+  background:var(--gold);border-color:var(--gold);color:#fff;font-weight:600;
+  box-shadow:0 2px 7px rgba(176,138,80,.28);
+}
+#revealStayHint{margin:5px 0 0;font-size:11.5px;line-height:1.5}
+#revealStayHint b{color:var(--gold-d);font-variant-numeric:tabular-nums}
 
 /* 舞台 */
 .playarea{
@@ -470,6 +483,18 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:#fff
   margin-top:8px;font-size:16px;color:var(--ink-2);line-height:1.55;max-width:520px;
 }
 .answer .def em{font-style:normal;color:var(--muted);font-size:13px}
+/* 释义停留倒计时：一条会缩的细线，就压在「记得 / 模糊 / 忘了」上方，提示还剩几秒可以自评 */
+.stayline{
+  width:140px;max-width:60%;height:5px;border-radius:6px;background:#ece2d1;overflow:hidden;
+  margin:10px auto 0;opacity:0;box-shadow:inset 0 1px 1px rgba(120,95,60,.08);
+  transition:opacity .25s ease;
+}
+.stayline.on{opacity:1}
+.stayline i{
+  display:block;height:100%;width:100%;border-radius:4px;
+  background:linear-gradient(90deg,#dcc094,#b0864a);
+  transition:width .2s linear;
+}
 
 /* 操作条 */
 .actions{display:flex;gap:8px;justify-content:center;margin-top:16px;flex-wrap:wrap}
@@ -540,12 +565,16 @@ body.adj-open #toast{bottom:250px}
   .wr-main{order:1}
   .wr-side{position:static;order:2}
   .wrtop{max-height:none}
-  /* 窄屏只剩 3 列：提示独占一行，别撑出隐藏列 */
+  /* 窄屏只剩 3 列：停留按钮独占一行，别撑出隐藏列 */
+  .stay-set{grid-column:1 / -1}
   #revealStayHint{grid-column:1 / -1;padding-top:3px}
 }
 @media (max-width:520px){
   .settings{grid-template-columns:repeat(2,minmax(0,1fr))}
   .set.wide{grid-column:span 2}
+  /* 手机上停留秒数排成 5 个一行，按钮大一点好点 */
+  .stay-seg{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;max-width:none}
+  .stay-seg button{padding:7px 0}
   .chips{width:100%;margin-left:0}
   .answer .def{font-size:15px}
   .wr-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -852,7 +881,22 @@ mutual,相互的"></textarea>
           </div>
         </div>
         <label class="switch" title="开启后每轮顺序随机"><input type="checkbox" id="chkShuffle">打乱顺序</label>
-        <p class="hint" id="revealStayHint">释义停留 <b>1</b> 秒后自动进入下一题并播放</p>
+        <div class="set stay-set">
+          <label>释义停留（秒）</label>
+          <div class="stay-seg" id="staySeg" role="group" aria-label="释义显示后停留几秒">
+            <button type="button" data-s="1" aria-pressed="false" title="揭晓后停 1 秒">1</button>
+            <button type="button" data-s="2" aria-pressed="false" title="揭晓后停 2 秒">2</button>
+            <button type="button" data-s="3" aria-pressed="false" title="揭晓后停 3 秒">3</button>
+            <button type="button" data-s="4" aria-pressed="false" title="揭晓后停 4 秒">4</button>
+            <button type="button" data-s="5" aria-pressed="false" title="揭晓后停 5 秒">5</button>
+            <button type="button" data-s="6" aria-pressed="false" title="揭晓后停 6 秒">6</button>
+            <button type="button" data-s="7" aria-pressed="false" title="揭晓后停 7 秒">7</button>
+            <button type="button" data-s="8" aria-pressed="false" title="揭晓后停 8 秒">8</button>
+            <button type="button" data-s="9" aria-pressed="false" title="揭晓后停 9 秒">9</button>
+            <button type="button" data-s="10" aria-pressed="false" title="揭晓后停 10 秒">10</button>
+          </div>
+          <p class="hint" id="revealStayHint">揭晓后停 <b>3</b> 秒，期间可点「记得 / 模糊 / 忘了」</p>
+        </div>
       </div>
 
       <!-- 播放区 -->
@@ -876,6 +920,8 @@ mutual,相互的"></textarea>
             <div class="def" id="ansDef"></div>
           </div>
         </div>
+
+        <div class="stayline" id="stayLine" aria-hidden="true"><i id="stayFill"></i></div>
 
         <div class="mark" id="markRow">
           <button data-m="know" title="立刻显示这个单词的释义">记得</button>
@@ -1164,10 +1210,16 @@ const LS = {
 };
 const DEFAULTS = {
   engine: "youdao-us", voice: "", rate: 0.9, repeat: 2, gap: 1,
-  delay: 2, shuffle: true, customUrl: "", count: 0, audit: true
+  delay: 2, shuffle: true, customUrl: "", count: 0, audit: true, stay: 3
 };
-/* 揭晓后统一停留 1 秒：释义消失 → 自动进入下一题并播发音（末题则直接结算） */
-const REVEAL_STAY_MS = 1000;
+/* 释义揭晓后停留几秒：设置里可选 1–10 秒（cfg.stay），这段时间正好用来点「记得 / 模糊 / 忘了」 */
+const STAY_MIN = 1, STAY_MAX = 10, STAY_FALLBACK = 3;
+function staySec() {
+  const n = Math.round(Number(cfg.stay));
+  if (!isFinite(n)) return STAY_FALLBACK;
+  return Math.min(STAY_MAX, Math.max(STAY_MIN, n));
+}
+function stayMs() { return staySec() * 1000; }
 /* 功能开关：音频切分暂不对用户开放（代码仍保留在页面里，确定要用时把 split 改成 true） */
 const FEATURES = { split: false };
 
@@ -1185,6 +1237,7 @@ let token = 0;           // 播放序列令牌，用来中断
 let repInFlight = false; // 是否正在等「这一遍读完」
 let lastSoundAt = 0;     // 最近一次真的出声的时间（判断「刚才还有声」）
 let cdTimer = null, nextTimer = null;
+let stayEndAt = 0, stayTicker = null;   // 释义停留：结束时刻 + 刷新倒计时的定时器
 let pendingSession = null;   // 存过但还没恢复的进度快照
 let savedSig = "";           // 保存那一刻的状态签名
 let savedAt = 0;             // 保存时间
@@ -1231,15 +1284,18 @@ function loadStore() {
   activeId = libs.some(l => l.id === saved) ? saved : libs[0].id;
   words = activeLib().words;
 
-  // 设置：老配置迁移（v3 起「打乱顺序」默认开；揭晓后的停留时长固定为 1 秒，不再有开关）
+  // 设置：老配置迁移（v3 起「打乱顺序」默认开；v4 起释义停留可在 1–10 秒之间选）
   try {
     const c = JSON.parse(localStorage.getItem(LS.cfg) || "{}");
-    const oldVer = !c || c.v !== 3;
+    const ver = Number(c && c.v) || 0;
     cfg = Object.assign({}, DEFAULTS, c || {});
-    if (oldVer) cfg.shuffle = true;
+    if (ver < 3) cfg.shuffle = true;
     delete cfg.autoNext;          // 旧字段：节奏已统一，留着只会误导
-    cfg.v = 3;
-  } catch (e) { cfg = Object.assign({}, DEFAULTS, { v: 3 }); }
+    const raw = cfg.stay;
+    const stay = raw === "" || raw == null ? NaN : Math.round(Number(raw));
+    cfg.stay = isFinite(stay) ? clamp(stay, STAY_MIN, STAY_MAX, STAY_FALLBACK) : STAY_FALLBACK;
+    cfg.v = 4;
+  } catch (e) { cfg = Object.assign({}, DEFAULTS, { v: 4 }); }
 
   // 错题记录
   try {
@@ -2558,6 +2614,8 @@ function clearCountdown() {
 }
 function clearNextTimer() {
   if (nextTimer) { clearTimeout(nextTimer); nextTimer = null; }
+  if (stayTicker) { clearInterval(stayTicker); stayTicker = null; }
+  stayEndAt = 0;
 }
 /* 停播代际：每次 stopAllAudio +1。
    还在等的播放器靠它区分「是我自己把声音停了」和「声音被别人掐断了」——
@@ -2663,16 +2721,45 @@ function doReveal() {
   if (revealed || !queue.length) return;
   revealed = true;
   clearCountdown();
-  // 先把 1 秒定时器装上，再刷界面：否则状态文字会误报「点下一题继续」
-  // 统一节奏：释义只停 1 秒，随后自动进入下一题并播放（想回看用「← 上一题」）
-  clearNextTimer();
-  nextTimer = setTimeout(() => {
-    if (!$("#gateEnd").classList.contains("hide")) return;            // 已经结算
-    if (!revealed) return;                                            // 期间换了题
-    goNext();
-  }, REVEAL_STAY_MS);
+  // 先把停留定时器装上，再刷界面：否则状态文字会误报「点下一题继续」
+  armStay();
   paintStage();
   preloadNext();
+}
+
+/** 释义停留窗口：cfg.stay 秒内可以点自评，到点自动进入下一题并播放（末题直接结算） */
+function armStay() {
+  clearNextTimer();
+  const ms = stayMs();
+  stayEndAt = Date.now() + ms;
+  nextTimer = setTimeout(() => {
+    if (!$("#gateEnd").classList.contains("hide")) return;   // 已经结算
+    if (!revealed) return;                                   // 期间换了题
+    goNext();
+  }, ms);
+  stayTicker = setInterval(paintStayStatus, 200);
+  paintStayStatus();
+}
+function stayLeftMs() { return Math.max(0, stayEndAt - Date.now()); }
+
+/** 当前词的自评文案（没标过就只说「释义已显示」） */
+function markText() {
+  const mk = marks[currentWordIndex()];
+  return mk === "know" ? "已标记「记得」"
+    : mk === "vague" ? "已标记「模糊」"
+      : mk === "forgot" ? "已标记「忘了」" : "释义已显示";
+}
+
+/** 每 200ms 只刷新状态行和细条，不重排列表（别在这里做重活） */
+function paintStayStatus() {
+  if (!revealed || !nextTimer) return;
+  const fill = $("#stayFill");
+  const total = stayMs();
+  if (fill) fill.style.width = (total ? Math.max(0, stayLeftMs() / total * 100) : 0).toFixed(1) + "%";
+  if (playing || cdTimer) return;                                       // 重听 / 揭晓倒计时时让播放文案占位
+  if (!$("#gateEnd").classList.contains("hide")) return;
+  const left = Math.max(1, Math.ceil(stayLeftMs() / 1000));
+  $("#status").textContent = markText() + " · " + left + " 秒后进入下一题";
 }
 
 /* ---------------- 会话 ---------------- */
@@ -2754,6 +2841,7 @@ function goPrev() {
 function finishSession(early) {
   started = false; finished = true; playing = false;
   stopPlayback();
+  clearNextTimer();              // 停掉释义停留倒计时，别在结算页后面继续跑
   setLibMasked(false);           // 本轮结束，词库恢复显示，方便复盘
   const c = { know: 0, vague: 0, forgot: 0 };
   Object.keys(marks).forEach(k => { if (c[marks[k]] != null) c[marks[k]]++; });
@@ -3022,8 +3110,12 @@ function paintStage() {
     $("#ansWord").textContent = "";
     $("#ansDef").textContent = "";
     $("#delayTxt").textContent = String(Number(cfg.delay) || 0);
+    const fill = $("#stayFill");
+    if (fill) fill.style.width = "100%";      // 停留条回到满格，下次揭晓重新走
     $$("#markRow button").forEach(b => b.classList.remove("on"));
   }
+  const line = $("#stayLine");
+  if (line) line.classList.toggle("on", revealed && !!nextTimer);
   paintDots(-1, Math.max(1, Math.min(9, parseInt(cfg.repeat, 10) || 1)));
   paintStats();
   paintList();
@@ -3031,13 +3123,10 @@ function paintStage() {
     if (audioDead) {
       $("#status").innerHTML = "⚠ 本轮没有音频 · 已直接显示拼写";
     } else {
-      // 揭晓文案带上自评结果：点完「记得」就能看到自己标了什么
-      const mk = revealed ? marks[currentWordIndex()] : "";
-      const mkTxt = mk === "know" ? "已标记「记得」"
-        : mk === "vague" ? "已标记「模糊」"
-          : mk === "forgot" ? "已标记「忘了」" : "释义已显示";
+      // 揭晓文案带上自评结果和剩余停留时间：点完「记得」就知道自己标了什么、还剩几秒
+      const left = Math.max(1, Math.ceil(stayLeftMs() / 1000));
       $("#status").textContent = total
-        ? (revealed ? (nextTimer ? mkTxt + " · 1 秒后进入下一题" : mkTxt + " · 点下一题继续") : "点圆形按钮再听一遍")
+        ? (revealed ? (nextTimer ? markText() + " · " + left + " 秒后进入下一题" : markText() + " · 点下一题继续") : "点圆形按钮再听一遍")
         : "点击开始，听发音后回忆释义";
     }
   }
@@ -3088,7 +3177,13 @@ function syncSettingsUI() {
   fillVoiceSelect();
   $("#delayTxt").textContent = String(Number(cfg.delay) || 0);
   const stay = $("#revealStayHint");
-  if (stay) stay.innerHTML = "释义停留 <b>" + (REVEAL_STAY_MS / 1000) + "</b> 秒后自动进入下一题并播放";
+  const sec = staySec();
+  if (stay) stay.innerHTML = "揭晓后停 <b>" + sec + "</b> 秒，期间可点「记得 / 模糊 / 忘了」";
+  $$("#staySeg button").forEach(b => {
+    const on = Number(b.dataset.s) === sec;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-pressed", on ? "true" : "false");
+  });
   paintCountTip();
 }
 /** 抽测数量提示：库里有几个、这轮会抽几个 */
@@ -3208,7 +3303,7 @@ function syncGate() {
     let s = "「" + (activeLib() || {}).name + "」共 " + words.length + " 个单词";
     if (n > 0 && n < words.length) s += "，本轮抽 " + n + " 个";
     s += cfg.shuffle ? " · 顺序已打乱。" : " · 按词库顺序。";
-    s += "释义停 " + (REVEAL_STAY_MS / 1000) + " 秒后自动进入下一个。";
+    s += "释义停 " + staySec() + " 秒后自动进入下一个。";
     desc.textContent = s;
   }
   paintCountTip();
@@ -4257,6 +4352,17 @@ function bind() {
   $("#inpDelay").onchange = e => {
     cfg.delay = clamp(e.target.value, 0, 20, 0.5); saveCfg(); syncSettingsUI(); paintStage();
   };
+  /* 释义停留：点一下立刻生效；如果当前这题正停在揭晓阶段，就按新时长重新计时 */
+  $("#staySeg").onclick = e => {
+    const b = e.target.closest("button[data-s]");
+    if (!b) return;
+    const v = clamp(b.dataset.s, STAY_MIN, STAY_MAX, STAY_FALLBACK);
+    if (v === staySec()) return;
+    cfg.stay = v; saveCfg(); syncSettingsUI();
+    if (revealed && nextTimer) armStay();
+    paintStage();
+    toast("释义停留 " + v + " 秒");
+  };
   $("#inpRate").onchange = e => {
     cfg.rate = clamp(e.target.value, 0.5, 1.5, 0.9); saveCfg(); syncSettingsUI();
   };
@@ -4292,7 +4398,8 @@ function bind() {
     if (confirm("放弃后这份进度就没了（错题本里已归档的记录不受影响），确定？")) dropSession();
   };
 
-  /* 自评：点下去就算作答完成，立即揭晓这个单词的释义（不再 320ms 直接翻页） */
+  /* 自评：点下去就算作答完成，立即揭晓这个单词的释义（不再 320ms 直接翻页）
+     释义已经显示时（停留窗口内）点自评：改掉标记并立刻往下走，不用干等窗口结束 */
   $("#markRow").onclick = e => {
     const b = e.target.closest("button[data-m]");
     if (!b) return;
@@ -4300,7 +4407,7 @@ function bind() {
     if (idx < 0) return;
     marks[idx] = b.dataset.m;
     if (!revealed) {
-      // 先收声（可能还在念第二、三遍），再揭晓：释义照常停留 1 秒后自动进入下一题
+      // 先收声（可能还在念第二、三遍），再揭晓：释义按「释义停留」显示后再进入下一题
       stopPlayback();
       doReveal();
     } else {
