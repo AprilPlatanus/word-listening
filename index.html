@@ -483,12 +483,12 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:var(
 }
 .setwrap.folded .set-hd .car{transform:rotate(-90deg)}
 .settings{
-  display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;
-  padding:2px 12px 11px;
+  display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:7px;
+  padding:2px 12px 9px;
 }
 .setwrap.folded .settings{display:none}
 .set{min-width:0}
-.set label{display:block;font-size:11px;color:var(--muted);letter-spacing:.03em;margin-bottom:4px;white-space:nowrap}
+.set label{display:block;font-size:11px;color:var(--muted);letter-spacing:.03em;margin-bottom:3px;white-space:nowrap}
 .set select,.set input{padding:6px 8px;font-size:12.5px;border-radius:8px;background:var(--panel-3)}
 .set.wide{grid-column:span 2}
 .set.full{grid-column:1 / -1}   /* 带长提示的区域独占一整行，别和右侧开关挤在一起 */
@@ -541,9 +541,12 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:var(
 
 /* 舞台 */
 .playarea{
-  min-height:330px;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  padding:26px 16px 20px;position:relative;
+  min-height:300px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:24px 16px 18px;position:relative;
 }
+/* 起始遮罩铺满时，下面那叠「播放钮 / 揭晓 / 自评 / 翻页」还没被用到，不必撑高度：
+   设置区默认展开的情况下，这样「开始听测」才留在首屏里（旧浏览器不支持 :has 就保持原样） */
+.playarea:has(> #gateStart:not(.hide)) > :not(.gate){display:none}
 .dial{position:relative;width:112px;height:112px;display:grid;place-items:center;margin-bottom:14px}
 .dial::before{
   content:"";position:absolute;inset:0;border-radius:50%;
@@ -624,9 +627,9 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:var(
 
 /* 起始 / 结束 遮罩 */
 .gate{
-  position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;
   background:var(--panel);backdrop-filter:blur(4px);border-radius:14px;z-index:5;
-  text-align:center;padding:24px;
+  text-align:center;padding:20px;
 }
 .gate.hide{display:none}
 .gate h3{margin:0;font-size:17px;font-weight:650}
@@ -1045,7 +1048,7 @@ mutual,相互的"></textarea>
         </div>
       </div>
 
-      <!-- 设置：可折叠。开始听测后自动收起，只留一行摘要，整块测试页才装得进一屏 -->
+      <!-- 设置：可折叠。默认展开，点「开始听测」后自动收起成一行摘要，整块测试页才装得进一屏 -->
       <div class="setwrap" id="setWrap">
         <button class="set-hd" id="setToggle" type="button" aria-expanded="true" aria-controls="setBody"
                 title="展开 / 收起测试设置">
@@ -1177,7 +1180,7 @@ mutual,相互的"></textarea>
           <h3>准备好了吗</h3>
           <div class="steps"><span>① 听发音</span><span>② 心里回忆</span><span>③ 自动揭晓</span></div>
           <p id="gateDesc">词库还是空的：把单词粘到左边存好，或点右上「导入文件」。</p>
-          <p class="gate-pace">节奏（语速 / 遍数 / 停留秒数）点上面的「<b>测试设置</b>」随时能改</p>
+          <p class="gate-pace">开测后设置自动收起，点「<b>测试设置</b>」可再展开</p>
           <button class="btn gold" id="btnStart">开始听测</button>
         </div>
 
@@ -3498,9 +3501,10 @@ function paintStats() {
 }
 
 /* ---------------- 设置同步 ---------------- */
-/* 设置区折叠：开始听测后自动收起，只留「1.0× · 1 遍 · 延迟 3s · 停留 3s」一行摘要。
-   原因：设置整块约 280px 高，夹在进度条和播放区之间，1366×768 这类笔记本上一屏
-   根本装不下「进度条 + 记得/模糊/忘了」，学生得来回滚。 */
+/* 设置区折叠：默认展开，改完节奏直接开测；点「开始听测」后自动收起，
+   只留「1.0× · 1 遍 · 延迟 3s · 停留 3s」一行摘要。
+   原因：设置整块约 300px 高，夹在进度条和播放区之间，1366×768 这类笔记本上一屏
+   根本装不下「进度条 + 记得/模糊/忘了」，学生得来回滚。想再改就点一下标题栏展开。 */
 function setFold(fold) {
   const w = $("#setWrap");
   if (!w) return;
@@ -6279,8 +6283,9 @@ function init() {
   window.addEventListener("dragover", e => e.preventDefault());
   window.addEventListener("drop", e => { if (!e.defaultPrevented) e.preventDefault(); });
   syncSettingsUI();
-  // 设置区默认收起：一屏要装下进度条 + 播放区 + 自评按钮；想改节奏点一下「测试设置」就展开
-  setFold(true);
+  // 设置区默认展开：进来先能看见语速 / 遍数 / 延迟这些节奏项，改完直接开测；
+  // 点「开始听测」后 startSession() 会自动收起，保证一屏装下进度条 + 播放区 + 记得/模糊/忘了
+  setFold(false);
   renderLibs();
   paintList();
   resetCounter();
