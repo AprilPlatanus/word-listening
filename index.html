@@ -1709,6 +1709,90 @@ function paintBiCount() {
   const mn = $("#biN");
   if (mn) mn.textContent = r.n ? "共 " + (r.b - r.a + 1) + " 词" : "";
 }
+/** 当前书 + 当前范围切出来的那一段词 */
+function biSlice() {
+  const book = BUILTIN[biBookIndex()];
+  if (!book) return { book: null, r: { a: 1, b: 0, n: 0 }, list: [] };
+  const r = biRange();
+  return {
+    book: book, r: r,
+    list: book.words.slice(r.a - 1, r.b).map(function (w) { return { w: w.w, d: w.d, x: w.x }; })
+  };
+}
+/** 这一轮实际会考到的词池：内置词库跟着「范围」走 ——
+ *  右侧「抽测数量」的总数、「共 N 个」都按这个算，范围一改就跟着改 */
+function poolSize() {
+  if (started && !finished) return words.length;   // 测到一半不改口径，以免总数和队列对不上
+  const lib = activeLib();
+  if (lib && lib.id === "bi:" + biBookIndex() && BUILTIN.length) {
+    const r = biRange();
+    if (r.n) return r.b - r.a + 1;
+  }
+  return words.length;
+}
+/** 抽测数量真正生效的值：不能超过本轮范围。
+ *  注意 cfg.count 里存的是用户填的「意图」，不因为范围临时收窄就被改掉 ——
+ *  下次范围放大，原来的数量还会回来 */
+function effCount() {
+  const size = poolSize();
+  const n = Math.max(0, parseInt(cfg.count, 10) || 0);
+  return size > 0 && n > size ? size : n;
+}
+/** 让左栏「内置词库」面板跟着当前词库走：
+ *  从「已保存词库」里点回某本内置书、或刷新后重新打开，选中的书和范围都对得上 */
+function syncPanelToLib() {
+  const lib = activeLib();
+  const m = lib && /^bi:(\d+)$/.exec(lib.id);
+  if (!m) return;
+  const i = Number(m[1]);
+  if (!(i >= 0 && i < BUILTIN.length)) return;
+  cfg.biBook = i;
+  if (lib.range) { cfg.biFrom = lib.range[0]; cfg.biTo = lib.range[1]; }
+  saveCfg();
+  renderBuiltin();
+}
+/** 改范围立刻把词库内容换成新范围（只在正用着这本内置词库时动手），
+ *  否则左边词数、右边总数、门板文案会各说各话 */
+function applyBuiltinRange() {
+  if (started && !finished) return;                  // 正在测就别动词库
+  const id = "bi:" + biBookIndex();
+  if (activeId !== id) return;                       // 只有正用着这本才跟着改
+  const lib = libs.find(function (l) { return l.id === id; });
+  if (!lib) return;
+  const s = biSlice();
+  if (!s.list.length) return;
+  lib.name = s.book.name;
+  lib.words = s.list;
+  lib.range = [s.r.a, s.r.b];
+  words = lib.words;
+  persistLibs();
+  renderLibs();
+  resetRoundUI();                                    // 里面会把右侧设置一起刷新
+}
+/** 范围/选书改动后的统一收尾：刷新左栏数字 + 右侧设置 + 门板文案 */
+function biEdited(force) {
+  renderBuiltin(force);        // 回写输入框（越界收敛）并更新「共 N 词」
+  if (started && !finished) {
+    // 正在测：本轮词库不能悄悄换掉，把范围退回这一轮实际在用的那段
+    const lib = activeLib();
+    if (lib && lib.range) {
+      cfg.biFrom = lib.range[0]; cfg.biTo = lib.range[1]; saveCfg();
+      renderBuiltin(true);
+    }
+    paintCountTip(); paintSetSum(); syncGate();
+    toast("测试进行中，范围先不改；结束后再调");
+    return;
+  }
+  const id = "bi:" + biBookIndex();
+  const s = biSlice();
+  if (s.list.length) {
+    if (activeId === id) applyBuiltinRange();   // 正用着这本 → 词库内容跟着换
+    else loadBuiltin(false, true);              // 还没载入过 → 直接按范围切进来（不弹提示）
+  }
+  paintCountTip();
+  paintSetSum();
+  syncGate();
+}
 function renderBuiltin(force) {
   const box = $("#biBooks");
   if (!box || !BUILTIN.length) return;
@@ -1727,8 +1811,9 @@ function renderBuiltin(force) {
   const tot = $("#biTotal");
   if (tot) tot.textContent = BUILTIN.length + " 本 · " + BUILTIN.reduce((s, b) => s + b.words.length, 0) + " 词";
 }
-/** 按当前书 + 范围切一段词，做成（或更新）内置词库并切过去 */
-function loadBuiltin(startNow) {
+/** 按当前书 + 范围切一段词，做成（或更新）内置词库并切过去
+ *  quiet：改范围时的静默载入，不弹 toast（免得每敲一次就提示一遍） */
+function loadBuiltin(startNow, quiet) {
   const book = BUILTIN[biBookIndex()];
   if (!book) { toast("内置词库没有加载成功，请刷新页面"); return; }
   const r = biRange();
@@ -1752,7 +1837,8 @@ function loadBuiltin(startNow) {
   renderLibs();
   renderBuiltin();
   resetRoundUI();
-  toast("已载入「" + book.name + "」第 " + r.a + "–" + r.b + " 个 · " + slice.length + " 词");
+  syncSettingsUI();            // 右侧设置（抽测数量等）同步成新范围的数字
+  if (!quiet) toast("已载入「" + book.name + "」第 " + r.a + "–" + r.b + " 个 · " + slice.length + " 词");
   if (startNow) startSession();
 }
 
@@ -1920,6 +2006,7 @@ function switchLib(id) {
   words = l.words;
   try { localStorage.setItem(LS.active, activeId); } catch (e) { }
   renderLibs();
+  syncPanelToLib();          // 点回内置书时，上面选中的书与范围跟着对
   resetRoundUI();
   toast("已切换到「" + l.name + "」· " + words.length + " 词");
 }
@@ -3286,7 +3373,7 @@ function startSession(onlyWrong) {
     if (!pool.length) { toast("没有标记为「模糊 / 忘了」的单词"); return; }
   }
   // 抽测数量：先随机抽样，再按设置决定是否打乱顺序
-  const want = Math.max(0, parseInt(cfg.count, 10) || 0);
+  const want = effCount();
   if (want > 0 && want < pool.length) {
     pool = shuffleArr(pool.slice()).slice(0, want);
     pool.sort((a, b) => a - b);        // 抽样后恢复词库原序，保证打乱开关才是唯一变量
@@ -3739,7 +3826,15 @@ function paintSetSum() {
   const rate = r === Math.round(r) ? r.toFixed(1) : String(Math.round(r * 100) / 100);
   const d = Number(cfg.delay);
   const delay = isFinite(d) ? (d === Math.round(d) ? String(d) : String(Math.round(d * 10) / 10)) : "–";
-  el.textContent = rate + "× · " + (parseInt(cfg.repeat, 10) || 1) + " 遍 · 延迟 " + delay + "s · 停留 " + staySec() + "s";
+  el.textContent = rate + "× · " + (parseInt(cfg.repeat, 10) || 1) + " 遍 · 延迟 " + delay + "s · 停留 " + staySec() + "s" + countSum();
+}
+/** 折叠时也要能看出这轮抽多少个 —— 跟着范围走 */
+function countSum() {
+  const size = poolSize();
+  if (!size) return "";
+  const n = effCount();
+  if (!n || n >= size) return " · 全部 " + size;
+  return " · 抽 " + n + "/" + size;
 }
 
 function syncSettingsUI() {
@@ -3766,20 +3861,24 @@ function syncSettingsUI() {
   paintCountTip();
   paintSetSum();
 }
-/** 抽测数量提示：库里有几个、这轮会抽几个 */
+/** 抽测数量提示：本轮范围有几个、这轮会抽几个 */
 function paintCountTip() {
   const tip = $("#countTip");
   if (!tip) return;
-  const n = Number(cfg.count) || 0;
-  if (!n) {
-    tip.textContent = words.length ? "全部 " + words.length + " 个" : "0 = 全部";
-    return;
+  const size = poolSize();
+  const n = effCount();
+  const inp = $("#inpCount");
+  if (inp) {
+    // 输入框与上下箭头都以本轮范围为准，别让它指着一个范围外的数
+    inp.max = String(size > 0 ? size : 999);
+    inp.title = "每轮从当前范围（" + (size || 0) + " 个）里抽几个，0 = 全部";
+    // 框里显示的是「真正会抽几个」；正在打字时不动，免得打断输入
+    if (document.activeElement !== inp && inp.value !== String(n)) inp.value = String(n);
   }
-  if (words.length && n >= words.length) {
-    tip.textContent = "只有 " + words.length + " 个，全抽";
-  } else {
-    tip.textContent = "抽 " + n + " / " + words.length;
-  }
+  if (!size) { tip.textContent = n ? "抽 " + n + " 个" : "0 = 全部"; return; }
+  if (!n) tip.textContent = "全部 " + size + " 个";
+  else if (n >= size) tip.textContent = "全抽 " + size + " 个";
+  else tip.textContent = "抽 " + n + " / " + size;
 }
 
 function fillVoiceSelect() {
@@ -3879,16 +3978,18 @@ function syncGate() {
     desc.textContent = "词库还是空的：左边「内置词库」里选一本词汇书挑个范围，或把单词粘到左边存好。";
   } else {
     btn.textContent = "开始听测";
-    const n = Number(cfg.count) || 0;
+    const n = effCount();
+    const size = poolSize();
     const lib = activeLib() || {};
     let s = "「" + lib.name + "」" + (lib.range ? "第 " + lib.range[0] + "–" + lib.range[1] + " 个 · " : "") +
-      "共 " + words.length + " 个单词";
-    if (n > 0 && n < words.length) s += "，本轮抽 " + n + " 个";
+      "共 " + size + " 个单词";
+    if (n > 0 && n < size) s += "，本轮抽 " + n + " 个";
     s += cfg.shuffle ? " · 顺序已打乱。" : " · 按词库顺序。";
     s += "释义停 " + staySec() + " 秒后自动进入下一个。";
     desc.textContent = s;
   }
   paintCountTip();
+  paintSetSum();
 }
 
 let toastTimer = null;
@@ -4787,21 +4888,26 @@ function bind() {
       if (!b || b.dataset.bi == null) return;
       const i = Number(b.dataset.bi);
       if (i === biBookIndex()) return;
+      // 测到一半换书等于放弃本轮，先拦一道
+      if (started && !finished && queue.length &&
+        !confirm("正在测试中，切到「" + BUILTIN[i].name + "」会结束本轮（进度不会保存）。确定切换？")) {
+        renderBuiltin(); return;
+      }
       cfg.biBook = i;
       cfg.biFrom = 1;
       cfg.biTo = 0;                 // 换书就回到「整本」，再让用户自己收窄
       saveCfg();
-      renderBuiltin();
+      loadBuiltin(false);           // 立刻按整本载入并切过去，右侧总数跟着换书变
     };
   }
   const biFrom = $("#biFrom"), biTo = $("#biTo");
   if (biFrom) {
-    biFrom.oninput = () => { cfg.biFrom = biFrom.value; saveCfg(); paintBiCount(); };
-    biFrom.onchange = () => { cfg.biFrom = biFrom.value; saveCfg(); renderBuiltin(true); };
+    biFrom.oninput = () => { cfg.biFrom = biFrom.value; saveCfg(); paintBiCount(); paintCountTip(); };
+    biFrom.onchange = () => { cfg.biFrom = biFrom.value; saveCfg(); biEdited(true); };
   }
   if (biTo) {
-    biTo.oninput = () => { cfg.biTo = biTo.value; saveCfg(); paintBiCount(); };
-    biTo.onchange = () => { cfg.biTo = biTo.value; saveCfg(); renderBuiltin(true); };
+    biTo.oninput = () => { cfg.biTo = biTo.value; saveCfg(); paintBiCount(); paintCountTip(); };
+    biTo.onchange = () => { cfg.biTo = biTo.value; saveCfg(); biEdited(true); };
   }
   const biLoad = $("#btnBiLoad");
   if (biLoad) {
@@ -4962,12 +5068,15 @@ function bind() {
     cfg.repeat = clamp(e.target.value, 1, 9, 1); saveCfg(); syncSettingsUI(); paintStage();
   };
   $("#inpCount").onchange = e => {
-    cfg.count = clamp(e.target.value, 0, 999, 0);
+    // 上限就是本轮范围的大小，别让「抽 300 / 32」这种数字留在框里
+    const size = poolSize();
+    cfg.count = clamp(e.target.value, 0, size > 0 ? size : 999, 0);
     saveCfg(); syncSettingsUI(); syncGate();
   };
   $("#btnCountAll").onclick = () => {
     cfg.count = 0; saveCfg(); syncSettingsUI(); syncGate();
-    toast("每轮抽测整个词库");
+    const size = poolSize();
+    toast(size ? "每轮抽测当前范围全部 " + size + " 个" : "每轮抽测整个词库");
   };
   $("#inpGap").onchange = e => {
     cfg.gap = clamp(e.target.value, 0, 9, 1); saveCfg(); syncSettingsUI();
@@ -6543,6 +6652,7 @@ function init() {
   setFold(false);
   renderLibs();
   renderBuiltin();   // 内置词库：三本书 + 上次选的范围
+  syncPanelToLib();  // 上次用的就是内置词库时，把书和范围对齐到它
   paintList();
   resetCounter();
   syncGate();
