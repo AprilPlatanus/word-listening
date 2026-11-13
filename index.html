@@ -414,6 +414,9 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:var(
 .wr-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .wr-hd .t{font-size:13px;font-weight:600;color:var(--ink-2)}
 .wr-hd .m{font-size:11.5px;color:var(--muted);margin-top:2px}
+/* 每一轮的起止时刻 + 用时 */
+.wr-tgl .tm{display:block;font-size:11px;color:var(--muted);margin-top:3px;
+  font-variant-numeric:tabular-nums;letter-spacing:.01em}
 .wr-btns{display:flex;gap:6px;flex-wrap:wrap}
 .wr-btns .btn{padding:4px 9px;font-size:11.5px;border-radius:8px}
 /* 每条测试记录可折叠：点日期那一栏（或左侧小箭头）收起 / 展开本次错词 */
@@ -1590,6 +1593,11 @@ let pendingSession = null;   // 存过但还没恢复的进度快照
 let savedSig = "";           // 保存那一刻的状态签名
 let savedAt = 0;             // 保存时间
 let libViewId = null;        // 正在预览的词库 id（null = 关闭）
+// 本轮计时：开始时刻 + 累计有效时长（暂停 / 关页面接续的那段不算）
+let sessStart = 0;           // 这一轮第一次点开始的时间戳
+let sessAcc = 0;             // 已经跑掉的毫秒数（不含暂停、不含接续间隔）
+let segStart = 0;            // 当前这一段从什么时候开始计时（0 = 正暂停着）
+let sessResumed = false;     // 这一轮是从「保存的进度」接上的
 const audioCache = new Map();
 
 const CJK = /[\u3400-\u4dbf\u4e00-\u9fa5]/;
@@ -1887,6 +1895,33 @@ function fmtDate(ts, withTime) {
   let s = d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
   if (withTime) s += " " + p(d.getHours()) + ":" + p(d.getMinutes());
   return s;
+}
+/** 时:分:秒（错题本记的是每一轮的起止时刻，秒也要留着） */
+function fmtClockSec(ts) {
+  const d = new Date(ts), p = n => String(n).padStart(2, "0");
+  return p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds());
+}
+/** 日期 + 时:分:秒，导出 CSV 用 */
+function fmtStamp(ts) {
+  if (!ts) return "";
+  const d = new Date(ts);
+  return fmtDate(ts, true) + ":" + String(d.getSeconds()).padStart(2, "0");
+}
+/** 毫秒 → 人话：48 秒 / 12 分 08 秒 / 1 小时 05 分 */
+function fmtDur(ms) {
+  const t = Math.max(0, Math.round(Number(ms) || 0) / 1000);
+  if (t < 60) return Math.round(t) + " 秒";
+  const m = Math.floor(t / 60), s = Math.round(t % 60);
+  if (m < 60) return m + " 分 " + String(s).padStart(2, "0") + " 秒";
+  const h = Math.floor(m / 60), mm = m % 60;
+  return h + " 小时 " + String(mm).padStart(2, "0") + " 分";
+}
+/** 一条测试记录的开始 / 结束 / 用时（老记录只有 ts，缺的字段就少显示） */
+function recSpan(r) {
+  const end = Number(r.endTs || r.ts || 0);
+  const start = Number(r.startTs || 0);
+  const dur = Number(r.dur) > 0 ? Number(r.dur) : (start && end > start ? end - start : 0);
+  return { start, end, dur };
 }
 function libNameExists(name, exceptId) {
   return libs.some(l => l.id !== exceptId && l.name === name);
@@ -3383,6 +3418,8 @@ function startSession(onlyWrong) {
   queue = cfg.shuffle ? shuffleArr(pool) : pool;
   pos = 0; started = true; finished = false; revealed = false;
   marks = {};
+  // 计时从点「开始」这一刻算起；暂停与关页面接续的那段不计入
+  sessStart = Date.now(); sessAcc = 0; segStart = sessStart; sessResumed = false;
   savedAt = 0; savedSig = "";      // 新一轮，从「未保存」开始
   resetRemoteStreak();
   setLibMasked(true);            // 开测即收词库，防止看答案
@@ -3398,6 +3435,7 @@ function startSession(onlyWrong) {
 
 function enterItem(autoPlay) {
   paused = false;              // 翻页 / 继续 / 换轮都意味着不在暂停态了
+  if (started && !finished && !segStart) segStart = Date.now();   // 顺手把计时接回来
   revealed = false;
   clearCountdown();
   clearNextTimer();
@@ -3436,6 +3474,10 @@ function finishSession(early) {
   const total = queue.length;
   const answered = c.know + c.vague + c.forgot;
   const unmarked = total - answered;
+  const endTs = Date.now();
+  let dur = sessAcc + (segStart ? endTs - segStart : 0);   // 暂停的空档已扣掉
+  if (!sessStart) { sessStart = endTs; dur = 0; }
+  sessAcc = dur; segStart = 0;
 
   // 错题归档：模糊 / 忘了都算错题，存进本机错题本
   const wrong = queue
@@ -3444,7 +3486,8 @@ function finishSession(early) {
   if (total) {
     const lib = activeLib();
     records.push({
-      id: newId("rec"), ts: Date.now(),
+      id: newId("rec"), ts: endTs,
+      startTs: sessStart, endTs: endTs, dur: dur, resumed: !!sessResumed,
       libName: lib ? lib.name : "",
       total: total, done: answered, early: !!early,
       know: c.know, vague: c.vague, forgot: c.forgot,
@@ -3469,6 +3512,8 @@ function finishSession(early) {
     else if (c.know === total) txt += "，全部记得，很稳。";
     else txt += "。";
   }
+  // 结算页也把本轮用时说清楚，省得回头去错题本翻
+  if (dur > 0) txt = txt.replace(/。$/, "") + " · 用时 " + fmtDur(dur) + "。";
   $("#endHint").textContent = txt;
   $("#btnRetryWrong").disabled = (c.forgot + c.vague === 0);
   $("#gateEnd").classList.remove("hide");
@@ -3500,6 +3545,7 @@ function sessionSnapshot() {
   const lib = activeLib();
   return {
     v: 1, ts: Date.now(),
+    startTs: sessStart, acc: sessAcc + (segStart ? Date.now() - segStart : 0),
     libId: activeId, libName: lib ? lib.name : "",
     pos: pos, total: queue.length, done: markCount(),
     items: queue.map(i => ({
@@ -3635,6 +3681,11 @@ function resumeSession() {
   $("#btnEndWrongBook").hidden = true;
   pendingSession = null;
   savedAt = s.ts; savedSig = sessSig();
+  // 接续：开始时间还用当初那一次，已跑时长接着累加，接续前后的空档不算
+  sessStart = Number(s.startTs) || Number(s.ts) || Date.now();
+  sessAcc = Math.max(0, Number(s.acc) || 0);
+  segStart = Date.now();
+  sessResumed = true;
   paintResumeBar();
   enterItem();
   if (miss) toast("有 " + miss + " 个词已从词库移除，已跳过");
@@ -3657,6 +3708,7 @@ function endSession() {
 function pauseSession() {
   if (!started || finished || paused) return;
   paused = true;
+  if (segStart) { sessAcc += Date.now() - segStart; segStart = 0; }   // 暂停的时间不算用时
   clearCountdown();
   clearNextTimer();
   stopPlayback();                 // 停声；playing=false（内部刷的状态下面由 paintStage 盖回来）
@@ -3667,6 +3719,7 @@ function pauseSession() {
 function resumePaused() {
   if (!paused) return;
   paused = false;
+  if (!segStart) segStart = Date.now();          // 继续计时
   if (revealed) {
     armStay();
     paintPlayState();             // 圆钮取消「暂停」外观
@@ -4124,6 +4177,12 @@ function renderWrongBook() {
         '<span class="sp">🔊</span>' +
       "</button>";
     }).join("");
+    const sp = recSpan(r);
+    // 这一轮的起止与用时：老记录只存了结束时间，缺的字段就老实少写，不编
+    const timeLine = '<span class="tm">' + (sp.start
+      ? "开始 " + fmtClockSec(sp.start) + (sp.end ? " · 结束 " + fmtClockSec(sp.end) : "") +
+        (sp.dur ? " · 用时 " + fmtDur(sp.dur) : "") + (r.resumed ? " · 含接续" : "")
+      : "结束 " + fmtDate(sp.end || r.ts, true) + " · 用时未记录") + "</span>";
     const hdInner = (wrong.length ? '<span class="car"></span>' : '<span class="car blank"></span>') + '<span class="hd">' +
         '<span class="t">' + fmtDate(r.ts, true) + " " + (wrong.length
           ? '<span class="badge" style="background:var(--bad-bg);color:var(--bad-ink)">' + wrong.length + " 个错词</span>"
@@ -4131,6 +4190,7 @@ function renderWrongBook() {
         '<span class="m">' + (r.libName ? "「" + esc(r.libName) + "」· " : "") + "共 " + r.total + " 词" +
           (r.early ? " · 提前结束，答 " + (r.done || 0) + " 个" : "") +
           " · 记得 " + r.know + " / 模糊 " + r.vague + " / 忘了 " + r.forgot + "</span>" +
+        timeLine +
       "</span>";
     const hd = wrong.length
       ? '<button type="button" class="wr-tgl" data-act="fold" aria-expanded="' + open + '" title="展开 / 收起这次测试的错词">' + hdInner + '</button>'
@@ -4162,14 +4222,20 @@ function downloadCSV(filename, rows) {
   downloadText(filename, csv, "text/csv");
 }
 function exportWrongCSV(one) {
-  const rows = [["序号", "单词", "释义", "标记", "测试时间", "词库", "本轮词数"]];
+  const rows = [["序号", "单词", "释义", "标记", "开始时间", "结束时间", "用时", "词库", "本轮词数"]];
   const src = one ? [one] : records.slice().sort((a, b) => (a.ts || 0) - (b.ts || 0));
   let n = 0;
-  src.forEach(r => (r.wrong || []).forEach(it => {
-    rows.push([++n, it.w, it.d || "",
-      it.mark === "forgot" ? "忘了" : "模糊",
-      fmtDate(r.ts, true), r.libName || "", r.total]);
-  }));
+  src.forEach(r => {
+    const sp = recSpan(r);
+    (r.wrong || []).forEach(it => {
+      rows.push([++n, it.w, it.d || "",
+        it.mark === "forgot" ? "忘了" : "模糊",
+        sp.start ? fmtStamp(sp.start) : "",
+        sp.end ? fmtStamp(sp.end) : "",
+        sp.dur ? fmtDur(sp.dur) : "未记录",
+        r.libName || "", r.total]);
+    });
+  });
   if (rows.length === 1) { toast("还没有错题可导出"); return; }
   const tag = one ? safeName(one.libName) : "全部";
   const when = safeName(fmtDate(one ? one.ts : Date.now(), true));
