@@ -712,6 +712,14 @@ textarea:focus,input:focus,select:focus{border-color:var(--gold);background:var(
 .gate p{margin:0;font-size:12.5px;color:var(--muted);max-width:380px;line-height:1.7;text-wrap:balance}
 .gate .btn{margin-top:6px}
 .gate .gate-pace{margin-top:-2px;font-size:11.5px;color:var(--faint);line-height:1.6}
+/* 结束后自动跳错题本的倒计时（点「留在本页」可取消） */
+.gate .gate-auto{margin-top:-1px;font-size:11.5px;color:var(--faint);line-height:1.6;
+  display:flex;align-items:center;justify-content:center;gap:3px}
+.gate .gate-auto[hidden]{display:none}
+.gate .gate-auto b{font-weight:700;color:var(--gold-d);font-variant-numeric:tabular-nums}
+#endAutoStay{border:0;background:none;padding:0 0 0 2px;font:inherit;color:var(--gold-d);
+  cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+#endAutoStay:hover{color:var(--gold)}
 .gate .gate-pace b{color:var(--muted);font-weight:600}
 .steps{display:flex;gap:8px;margin:4px 0 2px;flex-wrap:wrap;justify-content:center}
 .steps span{
@@ -1291,6 +1299,8 @@ mutual,相互的"></textarea>
             <div class="f"><b id="fForgot">0</b><span>忘了</span></div>
           </div>
           <p id="endHint"></p>
+          <p class="gate-auto" id="endAuto" hidden><b id="endAutoN">3</b> 秒后自动打开错题本 ·
+            <button type="button" id="endAutoStay">留在本页</button></p>
           <div class="actions">
             <button class="btn" id="btnRetryWrong">只练「模糊 + 忘了」</button>
             <button class="btn" id="btnEndWrongBook" hidden>查看错题本 →</button>
@@ -2019,6 +2029,7 @@ function resetRoundUI() {
   started = false; finished = false; revealed = false; playing = false;
   queue = []; marks = {};
   clearCountdown(); clearNextTimer();
+  clearAutoWrong();
   stopPlayback();
   setLibMasked(false);
   $("#gateStart").classList.remove("hide");
@@ -3391,6 +3402,7 @@ function shuffleArr(a) {
 
 function startSession(onlyWrong) {
   if (!words.length) { toast("词库是空的，先添加单词"); return; }
+  clearAutoWrong();              // 倒计时里点了「再来一轮 / 只练错词」就别再跳走
   // 上一份存下的进度还没恢复，开新一轮就等于把它丢掉，先问一句
   if (pendingSession) {
     const s = pendingSession;
@@ -3461,6 +3473,34 @@ function goPrev() {
   enterItem();
 }
 
+/* 一轮结束后自动落到错题本：留 3 秒让人看清统计，期间点「留在本页」可取消 */
+let autoWrongTimer = 0;
+function clearAutoWrong() {
+  if (autoWrongTimer) { clearInterval(autoWrongTimer); autoWrongTimer = 0; }
+  const box = $("#endAuto");
+  if (box) box.hidden = true;
+}
+function armAutoWrong(msg) {
+  clearAutoWrong();
+  const box = $("#endAuto"), num = $("#endAutoN");
+  if (!box || !num) return;
+  let n = 3;
+  num.textContent = n;
+  box.hidden = false;
+  autoWrongTimer = setInterval(() => {
+    n--;
+    if (n > 0) { num.textContent = n; return; }
+    clearAutoWrong();
+    if (viewName !== "listen") return;      // 已经自己切走了，就别抢
+    switchView("wrong");
+    if (msg) toast(msg);
+  }, 1000);
+}
+function stayOnEnd() {
+  clearAutoWrong();
+  toast("已留在本页 · 点顶部「错题本」随时可看");
+}
+
 function finishSession(early) {
   started = false; finished = true; playing = false; paused = false;
   stopPlayback();
@@ -3521,6 +3561,9 @@ function finishSession(early) {
   discardSnapshot();
   paintSessBar();
   if (viewName === "wrong") renderWrongBook();
+  else armAutoWrong(wrong.length
+    ? "本轮 " + wrong.length + " 个「模糊 / 忘了」已存进错题本"
+    : "本轮全对，成绩已记入错题本");
 }
 
 /* ---------------- 进度保存 / 继续 ---------------- */
@@ -4305,7 +4348,9 @@ function bindWrongBook() {
     stopPlayback();
     speakOnce(li.dataset.w);
   };
-  $("#btnEndWrongBook").onclick = () => switchView("wrong");
+  $("#btnEndWrongBook").onclick = () => { clearAutoWrong(); switchView("wrong"); };
+  const stay = $("#endAutoStay");
+  if (stay) stay.onclick = stayOnEnd;
 }
 
 /* =========================================================
